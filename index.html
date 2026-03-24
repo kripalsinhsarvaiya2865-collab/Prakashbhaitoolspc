@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="gu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>⚙️ Chamunda CNC Tools</title>
+
+    <!-- Preconnect for faster CDN load -->
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://prakashbhaitools-default-rtdb.firebaseio.com">
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js" defer></script>
+
+    <style>
+        :root {
+            --bg: #f0f2f5; --text: #1a1a2e; --card: #ffffff;
+            --sidebar: #1a1a2e; --sidebar-text: #c8ccd4;
+            --pri: #d32f2f; --sec: #2e7d32;
+            --border: #e2e6ea; --muted: #8a94a6;
+            --hover: #f7f8fa; --active-nav: #d32f2f;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        [data-theme="dark"] {
+            --bg: #0d0d17; --text: #e8eaf0; --card: #16162a;
+            --sidebar: #0a0a14; --sidebar-text: #8a94a6;
+            --pri: #ff5252; --sec: #4caf50;
+            --border: #252540; --muted: #6b7280;
+            --hover: #1e1e35; --shadow: 0 2px 12px rgba(0,0,0,0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            display: flex; height: 100vh; overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ══ SIDEBAR ══ */
+        .sidebar {
+            width: 240px; min-width: 240px;
+            background: var(--sidebar);
+            display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+            transition: background 0.3s;
+        }
+        .sidebar-logo {
+            padding: 24px 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .sidebar-logo h2 {
+            color: #fff; font-size: 16px; font-weight: 700;
+            letter-spacing: 0.3px; line-height: 1.3;
+        }
+        .sidebar-logo .sub {
+            color: rgba(255,255,255,0.45); font-size: 11px; margin-top: 4px;
+        }
+        .logo-icon {
+            width: 38px; height: 38px; background: var(--pri);
+            border-radius: 10px; display: flex; align-items: center;
+            justify-content: center; font-size: 20px; margin-bottom: 10px;
+        }
+        #sync-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            margin-top: 8px; font-size: 11px; font-weight: 600;
+            background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);
+            padding: 3px 10px; border-radius: 20px;
+        }
+        #sync-badge.online { background: rgba(76,175,80,0.25); color: #81c784; }
+        #sync-badge::before { content: '●'; font-size: 8px; }
+
+        .sidebar-nav { flex: 1; padding: 16px 0; overflow-y: auto; }
+        .nav-section-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 1px;
+            color: rgba(255,255,255,0.25); text-transform: uppercase;
+            padding: 12px 20px 6px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 20px; cursor: pointer; color: var(--sidebar-text);
+            font-size: 13.5px; font-weight: 500; border-radius: 0;
+            transition: all 0.18s; border-left: 3px solid transparent;
+            margin: 1px 0;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .nav-item.active-nav {
+            background: rgba(211,47,47,0.15); color: #fff;
+            border-left-color: var(--pri);
+        }
+        .nav-icon { font-size: 18px; width: 22px; text-align: center; }
+
+        .sidebar-footer {
+            padding: 16px 12px;
+            border-top: 1px solid rgba(255,255,255,0.07);
+        }
+        .btn-theme-side {
+            width: 100%; padding: 9px 14px; border-radius: 8px;
+            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.6); font-size: 12px; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-theme-side:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+        /* ══ MAIN ══ */
+        .main {
+            flex: 1; display: flex; flex-direction: column;
+            overflow: hidden; min-width: 0;
+        }
+
+        /* TOP BAR */
+        .topbar {
+            background: var(--card); border-bottom: 1px solid var(--border);
+            padding: 0 28px; height: 60px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: var(--shadow); flex-shrink: 0;
+        }
+        .topbar-app-name {
+            font-size: 20px; font-weight: 800; color: var(--pri);
+            letter-spacing: 0.4px; line-height: 1.2;
+        }
+        .topbar-title { font-size: 12px; color: var(--muted); margin-top: 2px; font-weight: 500; }
+        .topbar-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .topbar-date {
+            font-size: 12px; color: var(--muted);
+            background: var(--bg); padding: 5px 12px;
+            border-radius: 6px; border: 1px solid var(--border);
+        }
+
+        /* CONTENT */
+        .content {
+            flex: 1; overflow-y: auto; padding: 24px 28px;
+        }
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* STATS ROW */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 16px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card); border-radius: 12px;
+            padding: 18px 20px; border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 28px; font-weight: 800; margin-top: 6px; }
+        .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+        .stat-card.red .stat-value { color: var(--pri); }
+        .stat-card.green .stat-value { color: var(--sec); }
+        .stat-card.blue .stat-value { color: #1565c0; }
+        .stat-card.purple .stat-value { color: #6a1b9a; }
+
+        /* CARD */
+        .card {
+            background: var(--card); border-radius: 12px;
+            padding: 22px 24px; border: 1px solid var(--border);
+            box-shadow: var(--shadow); margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 14px; font-weight: 700; color: var(--pri);
+            margin-bottom: 18px; padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* GRID LAYOUTS */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .four-col { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+
+        /* FORM */
+        label {
+            font-size: 11px; font-weight: 700; color: var(--muted);
+            display: block; margin-bottom: 5px; margin-top: 14px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        input, select {
+            width: 100%; padding: 10px 13px;
+            border-radius: 8px; border: 1.5px solid var(--border);
+            background: var(--bg); color: var(--text);
+            font-size: 14px; outline: none; transition: border 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--pri); box-shadow: 0 0 0 3px rgba(211,47,47,0.08); }
+        [data-theme="dark"] input, [data-theme="dark"] select { background: #1e1e35; }
+
+        /* BUTTONS */
+        button {
+            padding: 10px 20px; border-radius: 8px; border: none;
+            background: var(--pri); color: white;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+            transition: all 0.18s; letter-spacing: 0.2px;
+        }
+        button:hover { filter: brightness(1.1); }
+        button:active { transform: scale(0.97); }
+
+        .btn-save {
+            background: linear-gradient(135deg, #2e7d32, #1b5e20);
+            padding: 12px 32px; border-radius: 9px;
+            box-shadow: 0 4px 14px rgba(46,125,50,0.25);
+            font-size: 15px;
+        }
+        .btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
+        .btn-edit { background: #f57c00; }
+        .btn-del  { background: #c62828; }
+        .btn-sec  { background: #455a64; }
+        .btn-pdf1 { background: linear-gradient(135deg,#0097a7,#006064); }
+        .btn-pdf2 { background: linear-gradient(135deg,#ad1457,#880e4f); }
+
+        /* MODE BUTTONS */
+        .mode-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+        .mode-btn {
+            padding: 16px 12px; border-radius: 12px;
+            border: 2.5px solid transparent;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; text-align: center; line-height: 1.5;
+        }
+        .mode-btn .m-icon { font-size: 26px; display: block; margin-bottom: 4px; }
+        .mode-btn.active { opacity: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.15); border-color: currentColor; }
+        .mode-btn.inactive { opacity: 0.38; }
+        .btn-out { background: #ede7f6; color: #6a1b9a; }
+        .btn-in  { background: #e8f5e9; color: #2e7d32; }
+
+        /* ENTRY LAYOUT */
+        .entry-layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+
+        /* SEARCH DROPDOWN */
+        .search-container { position: relative; }
+        .search-results {
+            position: absolute; background: var(--card); width: 100%;
+            border: 1.5px solid var(--pri); z-index: 500;
+            max-height: 200px; overflow-y: auto;
+            border-radius: 9px; display: none;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15); top: calc(100% + 4px);
+        }
+        .search-results div { padding: 11px 14px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 14px; }
+        .search-results div:last-child { border-bottom: none; }
+        .search-results div:hover { background: rgba(211,47,47,0.07); }
+
+        /* TABLE */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 11px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: rgba(211,47,47,0.06); color: var(--pri); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--hover); }
+
+        /* BADGES */
+        .stock-ok  { display:inline-block; background:#e8f5e9; color:#2e7d32; border-radius:6px; padding:2px 9px; font-weight:700; font-size:12px; }
+        .stock-low { display:inline-block; background:#ffebee; color:#c62828; border-radius:6px; padding:2px 9px; font-weight:700; font-size:12px; }
+        .type-out  { background:#ede7f6; color:#6a1b9a; border-radius:5px; padding:2px 8px; font-size:11px; font-weight:700; }
+        .type-in   { background:#e8f5e9; color:#2e7d32; border-radius:5px; padding:2px 8px; font-size:11px; font-weight:700; }
+
+        /* MASTER LIST */
+        .master-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 11px 6px; border-bottom: 1px solid var(--border);
+        }
+        .master-item:last-child { border-bottom: none; }
+        .master-item:hover { background: var(--hover); border-radius: 6px; }
+        .master-item-info { display: flex; flex-direction: column; gap: 3px; }
+        .master-item-name { font-size: 14px; font-weight: 600; }
+        .master-item-sub  { font-size: 11px; color: var(--muted); }
+        .action-btns { display: flex; gap: 6px; flex-shrink: 0; }
+
+        /* DUPLICATE */
+        .duplicate-tool { background: rgba(255,193,7,0.12) !important; border-left: 4px solid #ffc107 !important; }
+        .dup-badge { background:#ffc107; color:#000; font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; margin-left:6px; }
+
+        /* REPORT FILTER BAR */
+        .filter-bar {
+            background: var(--card); border-radius: 12px; padding: 16px 20px;
+            border: 1px solid var(--border); box-shadow: var(--shadow);
+            display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .filter-bar > div { flex: 1; min-width: 150px; }
+        .filter-bar .filter-actions { display: flex; gap: 10px; flex-shrink: 0; align-self: flex-end; padding-bottom: 0; }
+        .filter-bar label { margin-top: 0; }
+
+        .hidden { display: none !important; }
+
+        /* SETTINGS LAYOUT */
+        .settings-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        /* EMPTY STATE */
+        .empty { text-align:center; color:var(--muted); padding:32px; font-size:14px; }
+        /* ══ LOADER ══ */
+        #app-loader {
+            position: fixed; inset: 0; z-index: 9999;
+            background: #1a1a2e;
+            display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.4s ease;
+        }
+        #app-loader.hide { opacity: 0; pointer-events: none; }
+        .loader-box { text-align: center; }
+        .loader-icon { font-size: 56px; margin-bottom: 14px; animation: spin 3s linear infinite; display: inline-block; }
+        @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+        .loader-title { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 0.5px; }
+        .loader-sub { font-size: 13px; color: rgba(255,255,255,0.45); margin-top: 5px; margin-bottom: 22px; }
+        .loader-spinner {
+            width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #d32f2f; border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 14px;
+        }
+        .loader-msg { font-size: 12px; color: rgba(255,255,255,0.4); }
+    </style>
+</head>
+<body>
+
+<!-- ══ LOADING SCREEN ══ -->
+<div id="app-loader">
+    <div class="loader-box">
+        <div class="loader-icon">⚙️</div>
+        <div class="loader-title">Chamunda Eng CNC Tools</div>
+        <div class="loader-sub">Shri Chamunda CNC Workshop</div>
+        <div class="loader-spinner"></div>
+        <div class="loader-msg" id="loader-msg">Connecting to server...</div>
+    </div>
+</div>
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-icon">⚙️</div>
+        <h2>Chamunda Eng<br>CNC Tools</h2>
+        <div class="sub">Shri Chamunda CNC Workshop</div>
+        <div id="sync-badge">Connecting...</div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-section-label">Main</div>
+        <div class="nav-item active-nav" id="n-entry" onclick="showSec('entry')">
+            <span class="nav-icon">✒️</span> નવી એન્ટ્રી
+        </div>
+        <div class="nav-item" id="n-report" onclick="showSec('report')">
+            <span class="nav-icon">📊</span> રિપોર્ટ
+        </div>
+
+        <div class="nav-section-label" style="margin-top:8px;">Manage</div>
+        <div class="nav-item" id="n-setting" onclick="showSec('setting')">
+            <span class="nav-icon">🛠️</span> ટૂલ / ઓપ. માસ્ટર
+        </div>
+    </nav>
+
+    <div class="sidebar-footer">
+        <button class="btn-theme-side" onclick="toggleTheme()">
+            🌙 Dark &nbsp;/&nbsp; ☀️ Light
+        </button>
+    </div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div>
+            <div class="topbar-app-name">⚙️ Chamunda Eng CNC Tools</div>
+            <div class="topbar-title" id="page-title">✒️ નવી એન્ટ્રી</div>
+        </div>
+        <div class="topbar-right">
+            <div class="topbar-date" id="today-date"></div>
+        </div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+        <!-- ══ ENTRY SECTION ══ -->
+        <div id="entry-sec" class="section active">
+
+            <!-- Stats Row -->
+            <div class="stats-row">
+                <div class="stat-card red">
+                    <div class="stat-label">🔧 Total Tools</div>
+                    <div class="stat-value" id="s-tools">0</div>
+                    <div class="stat-sub">Registered tools</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-label">📤 Total Issues</div>
+                    <div class="stat-value" id="s-issues">0</div>
+                    <div class="stat-sub">Tool out transactions</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-label">📦 Purchases</div>
+                    <div class="stat-value" id="s-purch">0</div>
+                    <div class="stat-sub">Stock added</div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-label">⚠️ Low Stock</div>
+                    <div class="stat-value" id="s-low">0</div>
+                    <div class="stat-sub">Below minimum</div>
+                </div>
+            </div>
+
+            <!-- Entry Form -->
+            <div class="entry-layout">
+                <!-- LEFT: Form -->
+                <div class="card">
+                    <div class="card-title">✒️ નવી ટ્રાન્ઝેક્શન</div>
+
+                    <label>તારીખ</label>
+                    <input type="date" id="t-date">
+
+                    <label>ટ્રાન્ઝેક્શન પ્રકાર</label>
+                    <div class="mode-btns">
+                        <div class="mode-btn btn-out active" id="btnOut" onclick="setMode('OUT')">
+                            <span class="m-icon">🔧</span>
+                            Tool Out<br><small>વપરાશ / Issue</small>
+                        </div>
+                        <div class="mode-btn btn-in inactive" id="btnIn" onclick="setMode('PURCHASE')">
+                            <span class="m-icon">📦</span>
+                            Purchase<br><small>નવી ખરીદી</small>
+                        </div>
+                    </div>
+
+                    <div id="entry-fields"></div>
+
+                    <div style="margin-top:18px;">
+                        <button class="btn-save" onclick="saveTransaction()">✅ સેવ કરો</button>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Recent Transactions -->
+                <div class="card">
+                    <div class="card-title">🕒 છેલ્લી ટ્રાન્ઝેક્શન</div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr><th>તારીખ</th><th>ઓપ. / સ.</th><th>ટૂલ</th><th>નં.</th><th>Type</th><th></th></tr>
+                            </thead>
+                            <tbody id="recent-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ REPORT SECTION ══ -->
+        <div id="report-sec" class="section">
+
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <div>
+                    <label>📅 મહિનો</label>
+                    <input type="month" id="rep-month" onchange="updateAllReports()">
+                </div>
+                <div>
+                    <label>📂 કેટેગરી</label>
+                    <select id="rep-cat" onchange="updateAllReports()"></select>
+                </div>
+                <div>
+                    <label>🔍 શોધ</label>
+                    <input type="text" id="search-box" placeholder="ટૂલ / ઓપ. નામ..." oninput="updateAllReports()">
+                </div>
+                <div class="filter-actions">
+                    <button class="btn-pdf1" onclick="downloadPDF('HISTORY')">📋 History PDF</button>
+                    <button class="btn-pdf2" onclick="downloadPDF('STOCK')">📦 Stock PDF</button>
+                </div>
+            </div>
+
+            <div class="two-col">
+                <!-- Stock Table -->
+                <div class="card">
+                    <div class="card-title">📦 સ્ટોક સ્ટેટસ</div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>ટૂલ નામ</th><th>કેટ.</th><th>કુલ</th><th>બાકી</th></tr></thead>
+                            <tbody id="stock-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- History Table -->
+                <div class="card">
+                    <div class="card-title">🕒 ટ્રાન્ઝેક્શન ઇતિહાસ</div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>તારીખ</th><th>ઓપ. / સ.</th><th>ટૂલ</th><th>નં.</th><th></th></tr></thead>
+                            <tbody id="history-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ SETTINGS SECTION ══ -->
+        <div id="setting-sec" class="section">
+            <div class="settings-layout">
+
+                <!-- Operator Master -->
+                <div class="card">
+                    <div class="card-title">👤 ઓપરેટર માસ્ટર</div>
+                    <label>ઓપરેટર નામ</label>
+                    <input type="text" id="new-op" placeholder="ઉદા: Ramesh, Suresh...">
+                    <div style="margin-top:10px;">
+                        <button onclick="addOperator()" style="background:var(--sec);">+ ઓપરેટર ઉમેરો</button>
+                    </div>
+                    <div id="op-list-display" style="margin-top:14px;"></div>
+                </div>
+
+                <!-- Tool Master -->
+                <div class="card">
+                    <div class="card-title" id="tool-master-title">🛠️ ટૂલ માસ્ટર</div>
+                    <input type="hidden" id="edit-tool-index" value="-1">
+
+                    <label>ટૂલ નામ</label>
+                    <input type="text" id="new-tool" placeholder="ઉદા: VNMG Insert, Boring Bar">
+
+                    <label>કેટેગરી</label>
+                    <input type="text" id="new-cat" placeholder="ઉદા: Boring, Insert, Drill">
+
+                    <div class="two-col">
+                        <div>
+                            <label>ઓપ. સ્ટોક</label>
+                            <input type="number" id="new-stock" placeholder="0" min="0">
+                        </div>
+                        <div>
+                            <label>Min Alert</label>
+                            <input type="number" id="min-limit" placeholder="0" min="0">
+                        </div>
+                    </div>
+
+                    <div style="margin-top:12px; display:flex; gap:10px;">
+                        <button id="tool-btn" onclick="addToolMaster()">+ ટૂલ ઉમેરો</button>
+                        <button id="cancel-edit" class="hidden btn-sec" onclick="cancelToolEdit()">✖ કેન્સલ</button>
+                    </div>
+
+                    <div id="tool-list-display" style="margin-top:14px;"></div>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+    // ── FIREBASE ──
+    const firebaseConfig = {
+        apiKey: "AIzaSyCsqhpmQDF0X6ssqTxQ_p2d15VZDJMcE0g",
+        authDomain: "prakashbhaitools.firebaseapp.com",
+        projectId: "prakashbhaitools",
+        storageBucket: "prakashbhaitools.firebasestorage.app",
+        messagingSenderId: "362668027589",
+        appId: "1:362668027589:web:abb83273896edba9910aac",
+        databaseURL: "https://prakashbhaitools-default-rtdb.firebaseio.com"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    let db = { operators:[], tools:[], transactions:[] };
+    let currentMode = 'OUT';
+    let highlightDupIndex = -1;
+
+    // Set today's date in topbar
+    const nowD = new Date();
+    document.getElementById('today-date').innerText =
+        nowD.toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+
+    database.ref('tools_data').on('value', snap => {
+        const data = snap.val();
+        if(data) {
+            db = data;
+            db.transactions = db.transactions || [];
+            db.operators    = db.operators    || [];
+            db.tools        = db.tools        || [];
+            renderMasterLists();
+            updateCategoryDropdown();
+            updateAllReports();
+            updateStats();
+            renderRecent();
+            setMode(currentMode);
+            const el = document.getElementById('sync-badge');
+            el.innerText = '✅ Online';
+            el.classList.add('online');
+        }
+        // Hide loader
+        const loader = document.getElementById('app-loader');
+        loader.classList.add('hide');
+        setTimeout(() => loader.style.display = 'none', 450);
+    });
+
+    function syncToCloud() {
+        database.ref('tools_data').set(db);
+        updateStats();
+        renderRecent();
+    }
+
+    // ── NAVIGATION ──
+    const pageTitles = { entry:'✒️ નવી એન્ટ્રી', report:'📊 રિપોર્ટ', setting:'🛠️ ટૂલ / ઓપ. માસ્ટર' };
+    function showSec(name) {
+        ['entry','report','setting'].forEach(s => document.getElementById(s+'-sec').classList.remove('active'));
+        ['n-entry','n-report','n-setting'].forEach(n => document.getElementById(n).classList.remove('active-nav'));
+        document.getElementById(name+'-sec').classList.add('active');
+        document.getElementById('n-'+name).classList.add('active-nav');
+        document.getElementById('page-title').innerText = pageTitles[name] || '';
+        if(name === 'report') updateAllReports();
+    }
+
+    // ── STATS ──
+    function updateStats() {
+        const issues = db.transactions.filter(t=>t.type==='OUT').length;
+        const purch  = db.transactions.filter(t=>t.subType==='Purchase').length;
+        let lowCount = 0;
+        db.tools.forEach(t => {
+            let p   = db.transactions.filter(tr=>tr.tool===t.name&&tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+            let out = db.transactions.filter(tr=>tr.tool===t.name&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+            let avail = (t.initialStock||0)+p-out;
+            if(avail <= (t.minLimit||0)) lowCount++;
+        });
+        document.getElementById('s-tools').innerText  = db.tools.length;
+        document.getElementById('s-issues').innerText = issues;
+        document.getElementById('s-purch').innerText  = purch;
+        document.getElementById('s-low').innerText    = lowCount;
+    }
+
+    // ── RECENT TRANSACTIONS ──
+    function renderRecent() {
+        let html = '';
+        db.transactions.slice().reverse().slice(0, 15).forEach(tr => {
+            const badge = tr.type==='OUT'
+                ? `<span class="type-out">OUT</span>`
+                : `<span class="type-in">IN</span>`;
+            html += `<tr>
+                <td><small>${tr.date}</small></td>
+                <td><small>${tr.op}</small></td>
+                <td><small><b>${tr.tool}</b></small></td>
+                <td><b>${tr.qty}</b></td>
+                <td>${badge}</td>
+                <td><button class="btn-sm btn-del" onclick="deleteTransaction(${tr.id})">✖</button></td>
+            </tr>`;
+        });
+        document.getElementById('recent-body').innerHTML = html || `<tr><td colspan="6" class="empty">કોઈ ડેટા નથી</td></tr>`;
+    }
+
+    // ── ENTRY FORM ──
+    function setMode(mode) {
+        currentMode = mode;
+        const bO = document.getElementById('btnOut');
+        const bI = document.getElementById('btnIn');
+        if(bO) {
+            bO.className = `mode-btn btn-out ${mode==='OUT'?'active':'inactive'}`;
+            bI.className = `mode-btn btn-in  ${mode==='PURCHASE'?'active':'inactive'}`;
+        }
+        let opOptions = db.operators.map(o=>`<option value="${o}">${o}</option>`).join('');
+        let html = mode === 'OUT'
+            ? `<label>ઓપરેટર</label><select id="sel-op">${opOptions||'<option>-- ઉમેરો --</option>'}</select>`
+            : `<label>સપ્લાયર / નોંધ</label><input type="text" id="sel-op" value="STOCK PURCHASE">`;
+        html += `<label>ટૂલ શોધો / પસંદ કરો</label>
+                 <div class="search-container">
+                   <input type="text" id="tool-search" placeholder="ટૂલ નામ ટાઈપ કરો..." oninput="filterTools(this.value)" autocomplete="off">
+                   <div id="search-res" class="search-results"></div>
+                   <input type="hidden" id="sel-tool">
+                 </div>
+                 <label>નંગ (Quantity)</label>
+                 <input type="number" id="sel-qty" value="1" min="1">`;
+        document.getElementById('entry-fields').innerHTML = html;
+    }
+
+    function filterTools(val) {
+        const res = document.getElementById('search-res');
+        if(!val) { res.style.display='none'; return; }
+        const f = db.tools.filter(t => t.name.toLowerCase().includes(val.toLowerCase()));
+        res.innerHTML = f.length
+            ? f.map(t=>`<div onclick="selectTool('${t.name.replace(/'/g,"\\'")}')"><b>${t.name}</b> <small style="color:var(--muted)">(${t.cat})</small></div>`).join('')
+            : `<div style="color:var(--muted)">ટૂલ મળ્યું નહીં</div>`;
+        res.style.display = 'block';
+    }
+
+    function selectTool(name) {
+        document.getElementById('tool-search').value = name;
+        document.getElementById('sel-tool').value = name;
+        document.getElementById('search-res').style.display = 'none';
+    }
+
+    function saveTransaction() {
+        const date     = document.getElementById('t-date').value;
+        const toolName = document.getElementById('sel-tool').value || document.getElementById('tool-search').value;
+        const qty      = parseInt(document.getElementById('sel-qty').value);
+        const op       = document.getElementById('sel-op').value;
+        if(!date||!toolName||!qty||!op) return alert("⚠️ બધી વિગત ભરો!");
+        const toolData = db.tools.find(t => t.name === toolName);
+        if(!toolData) return alert("⚠️ આ ટૂલ માસ્ટરમાં નથી!");
+        db.transactions.push({ id:Date.now(), date, month:date.substring(0,7), type:currentMode, op, tool:toolName, cat:toolData.cat, qty, subType:currentMode==='PURCHASE'?'Purchase':'Issue' });
+        syncToCloud();
+        alert("✅ એન્ટ્રી સેવ થઈ ગઈ!");
+        setMode(currentMode);
+    }
+
+    // ── OPERATORS ──
+    function addOperator() {
+        let val = document.getElementById('new-op').value.trim();
+        if(!val) return;
+        if(db.operators.includes(val)) return alert("⚠️ આ ઓપરેટર પહેલેથી છે!");
+        db.operators.push(val); syncToCloud();
+        alert("✅ ઓપરેટર સેવ!");
+        document.getElementById('new-op').value = '';
+    }
+
+    // ── TOOL MASTER ──
+    function addToolMaster() {
+        let name  = document.getElementById('new-tool').value.trim();
+        let cat   = document.getElementById('new-cat').value.trim() || 'General';
+        let stock = parseInt(document.getElementById('new-stock').value) || 0;
+        let limit = parseInt(document.getElementById('min-limit').value) || 0;
+        let index = parseInt(document.getElementById('edit-tool-index').value);
+        if(!name) return alert("⚠️ ટૂલ નામ જરૂરી છે!");
+        const dupIdx = db.tools.findIndex((t,i) => t.name.toLowerCase()===name.toLowerCase() && i!==index);
+        if(dupIdx > -1) {
+            highlightDupIndex = dupIdx;
+            renderMasterLists();
+            const items = document.querySelectorAll('#tool-list-display .master-item');
+            if(items[dupIdx]) items[dupIdx].scrollIntoView({ behavior:'smooth', block:'center' });
+            alert(`⚠️ "${name}" ટૂલ પહેલેથી છે!`);
+            setTimeout(() => { highlightDupIndex=-1; renderMasterLists(); }, 3500);
+            return;
+        }
+        highlightDupIndex = -1;
+        if(index > -1) { db.tools[index]={name,cat,initialStock:stock,minLimit:limit}; alert("✅ ટૂલ અપડેટ!"); }
+        else { db.tools.push({name,cat,initialStock:stock,minLimit:limit}); alert("✅ ટૂલ સેવ!"); }
+        cancelToolEdit(); syncToCloud();
+    }
+
+    function editTool(index) {
+        const t = db.tools[index];
+        document.getElementById('tool-master-title').innerText = "🛠️ ટૂલ એડિટ";
+        document.getElementById('edit-tool-index').value = index;
+        document.getElementById('new-tool').value  = t.name;
+        document.getElementById('new-cat').value   = t.cat;
+        document.getElementById('new-stock').value = t.initialStock;
+        document.getElementById('min-limit').value = t.minLimit;
+        document.getElementById('tool-btn').innerText = "✔ અપડેટ";
+        document.getElementById('cancel-edit').classList.remove('hidden');
+        window.scrollTo({ top:0, behavior:'smooth' });
+    }
+
+    function cancelToolEdit() {
+        document.getElementById('tool-master-title').innerText = "🛠️ ટૂલ માસ્ટર";
+        document.getElementById('edit-tool-index').value = "-1";
+        ['new-tool','new-cat','new-stock','min-limit'].forEach(id => document.getElementById(id).value='');
+        document.getElementById('tool-btn').innerText = "+ ટૂલ ઉમેરો";
+        document.getElementById('cancel-edit').classList.add('hidden');
+    }
+
+    function renderMasterLists() {
+        document.getElementById('op-list-display').innerHTML = db.operators.length
+            ? db.operators.map((o,i)=>`
+                <div class="master-item">
+                    <div class="master-item-info"><span class="master-item-name">👤 ${o}</span></div>
+                    <button class="btn-sm btn-del" onclick="deleteMaster('operators',${i})">✖</button>
+                </div>`).join('')
+            : `<p class="empty">કોઈ ઓપરેટર નથી</p>`;
+
+        document.getElementById('tool-list-display').innerHTML = db.tools.length
+            ? db.tools.map((t,i)=>`
+                <div class="master-item ${i===highlightDupIndex?'duplicate-tool':''}">
+                    <div class="master-item-info">
+                        <span class="master-item-name">🔧 ${t.name}${i===highlightDupIndex?'<span class="dup-badge">⚠️ DUPLICATE</span>':''}</span>
+                        <span class="master-item-sub">${t.cat} | ઓ.સ્ટ: ${t.initialStock} | Min: ${t.minLimit}</span>
+                    </div>
+                    <div class="action-btns">
+                        <button class="btn-sm btn-edit" onclick="editTool(${i})">✏️</button>
+                        <button class="btn-sm btn-del"  onclick="deleteMaster('tools',${i})">✖</button>
+                    </div>
+                </div>`).join('')
+            : `<p class="empty">કોઈ ટૂલ નથી</p>`;
+    }
+
+    function deleteMaster(key, index) {
+        if(confirm("ડીલીટ કરવું છે?")) {
+            let pass = prompt("🔑 પાસવર્ડ:");
+            if(pass==="2865") { db[key].splice(index,1); syncToCloud(); }
+            else if(pass!==null) alert("❌ ખોટો પાસવર્ડ!");
+        }
+    }
+
+    // ── REPORTS ──
+    function updateCategoryDropdown() {
+        const cats = [...new Set(db.tools.map(t=>t.cat))];
+        let html = '<option value="ALL">બધી કેટેગરી</option>';
+        cats.forEach(c=>{ if(c) html+=`<option value="${c}">${c}</option>`; });
+        document.getElementById('rep-cat').innerHTML = html;
+    }
+
+    function updateAllReports() {
+        const selMonth = document.getElementById('rep-month').value;
+        const selCat   = document.getElementById('rep-cat').value;
+        const search   = document.getElementById('search-box').value.toLowerCase();
+
+        // Stock table
+        let stockHtml = '';
+        db.tools.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(t => {
+            if(selCat!=='ALL' && t.cat!==selCat) return;
+            let pQty   = db.transactions.filter(tr=>tr.tool===t.name&&tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+            let outQty = db.transactions.filter(tr=>tr.tool===t.name&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+            let avail  = (t.initialStock||0)+pQty-outQty;
+            let isLow  = avail<=(t.minLimit||0);
+            stockHtml += `<tr>
+                <td><b>${t.name}</b></td>
+                <td><small>${t.cat}</small></td>
+                <td>${(t.initialStock||0)+pQty}</td>
+                <td>${isLow?`<span class="stock-low">${avail} ⚠️</span>`:`<span class="stock-ok">${avail}</span>`}</td>
+            </tr>`;
+        });
+        document.getElementById('stock-body').innerHTML = stockHtml || `<tr><td colspan="4" class="empty">કોઈ ડેટા નથી</td></tr>`;
+
+        // History table
+        let histHtml = '';
+        db.transactions
+            .filter(tr =>
+                (!selMonth||tr.date.startsWith(selMonth)) &&
+                (selCat==='ALL'||tr.cat===selCat) &&
+                (tr.op.toLowerCase().includes(search)||tr.tool.toLowerCase().includes(search))
+            )
+            .slice().reverse()
+            .forEach(tr => {
+                const badge = tr.type==='OUT'
+                    ? `<span class="type-out">OUT</span>`
+                    : `<span class="type-in">IN</span>`;
+                histHtml += `<tr>
+                    <td><small>${tr.date}</small></td>
+                    <td><small>${tr.op}</small> ${badge}</td>
+                    <td><small>${tr.tool}</small></td>
+                    <td><b>${tr.qty}</b></td>
+                    <td><button class="btn-sm btn-del" onclick="deleteTransaction(${tr.id})">✖</button></td>
+                </tr>`;
+            });
+        document.getElementById('history-body').innerHTML = histHtml || `<tr><td colspan="5" class="empty">કોઈ વ્યવહાર નથી</td></tr>`;
+    }
+
+    function deleteTransaction(id) {
+        if(confirm("ડીલીટ કરવો છે?")) {
+            let pass = prompt("🔑 પાસવર્ડ:");
+            if(pass==="2865") { db.transactions=db.transactions.filter(t=>t.id!==id); syncToCloud(); }
+            else if(pass!==null) alert("❌ ખોટો પાસવર્ડ!");
+        }
+    }
+
+    // ── PDF ──
+    function addFooter(doc, pageW) {
+        doc.setFontSize(8); doc.setTextColor(160,160,160); doc.setFont('helvetica','normal');
+        doc.text('Shri Chamunda Eng Tools — Confidential', 14, doc.internal.pageSize.getHeight()-8);
+        doc.text('Page '+doc.internal.getCurrentPageInfo().pageNumber+' / '+doc.internal.getNumberOfPages(), doc.internal.pageSize.getWidth()-14, doc.internal.pageSize.getHeight()-8, {align:'right'});
+    }
+
+    function downloadPDF(type) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageW = doc.internal.pageSize.getWidth();
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2,'0');
+        const mo = String(now.getMonth()+1).padStart(2,'0');
+        const yyyy = now.getFullYear();
+        const hh = String(now.getHours()).padStart(2,'0');
+        const mn = String(now.getMinutes()).padStart(2,'0');
+        const dateStamp = dd+'-'+mo+'-'+yyyy;
+        const selMonth  = document.getElementById('rep-month').value || 'All Time';
+
+        doc.setFillColor(211,47,47);
+        doc.rect(0,0,pageW,30,'F');
+        doc.setTextColor(255,255,255);
+        doc.setFontSize(17); doc.setFont('helvetica','bold');
+        doc.text('SHRI CHAMUNDA ENG TOOLS', pageW/2, 12, {align:'center'});
+        doc.setFontSize(9); doc.setFont('helvetica','normal');
+        doc.text(type==='HISTORY'?'TRANSACTION HISTORY REPORT':'STOCK STATUS REPORT', pageW/2, 20, {align:'center'});
+        doc.setDrawColor(255,255,255); doc.setLineWidth(0.3); doc.line(14,24,pageW-14,24);
+        doc.setFontSize(8);
+        doc.text('Period: '+selMonth, 14, 29);
+        doc.text('Printed: '+dateStamp+' '+hh+':'+mn, pageW-14, 29, {align:'right'});
+        doc.setTextColor(30,30,30);
+
+        if(type==='HISTORY') {
+            const selMonthVal = document.getElementById('rep-month').value;
+            let rows = db.transactions.filter(tr=>!selMonthVal||tr.date.startsWith(selMonthVal)).slice().reverse().map(tr=>[tr.date,tr.op,tr.tool,tr.type==='OUT'?'Issue':'Purchase',tr.qty]);
+            doc.autoTable({ head:[['Date','Operator / Supplier','Tool Name','Type','Qty']], body:rows, startY:34, styles:{fontSize:9,cellPadding:4}, headStyles:{fillColor:[211,47,47],textColor:255,fontStyle:'bold',halign:'center'}, alternateRowStyles:{fillColor:[255,245,245]}, columnStyles:{0:{halign:'center',cellWidth:26},3:{halign:'center',cellWidth:24},4:{halign:'center',cellWidth:14}}, didDrawPage:()=>addFooter(doc,pageW) });
+            const fY=doc.lastAutoTable.finalY+8;
+            const issues=rows.filter(r=>r[3]==='Issue').length;
+            const purchases=rows.filter(r=>r[3]==='Purchase').length;
+            doc.setFillColor(245,245,245); doc.roundedRect(14,fY,pageW-28,18,3,3,'F');
+            doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(80,80,80);
+            doc.text('Total: '+rows.length+'   |   Issue: '+issues+'   |   Purchase: '+purchases, pageW/2, fY+11, {align:'center'});
+            doc.save('Chamunda_History_'+dateStamp+'_'+hh+mn+'.pdf');
+        } else {
+            let rows=[]; let lowCount=0;
+            db.tools.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(t=>{
+                let p=db.transactions.filter(tr=>tr.tool===t.name&&tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+                let out=db.transactions.filter(tr=>tr.tool===t.name&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+                let avail=(t.initialStock||0)+p-out;
+                let isLow=avail<=(t.minLimit||0);
+                if(isLow) lowCount++;
+                rows.push([t.name,t.cat,(t.initialStock||0)+p,out,avail,isLow?'LOW':'OK']);
+            });
+            doc.autoTable({ head:[['Tool Name','Category','Total In','Used','Available','Status']], body:rows, startY:34, styles:{fontSize:9,cellPadding:4}, headStyles:{fillColor:[211,47,47],textColor:255,fontStyle:'bold',halign:'center'}, alternateRowStyles:{fillColor:[255,245,245]}, columnStyles:{2:{halign:'center'},3:{halign:'center'},4:{halign:'center',fontStyle:'bold'},5:{halign:'center'}}, didParseCell:(data)=>{ if(data.column.index===5&&data.cell.raw==='LOW'){data.cell.styles.textColor=[198,40,40];data.cell.styles.fontStyle='bold';} if(data.column.index===5&&data.cell.raw==='OK'){data.cell.styles.textColor=[46,125,50];} }, didDrawPage:()=>addFooter(doc,pageW) });
+            const fY=doc.lastAutoTable.finalY+8;
+            doc.setFillColor(245,245,245); doc.roundedRect(14,fY,pageW-28,18,3,3,'F');
+            doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(80,80,80);
+            doc.text('Total Tools: '+rows.length+'   |   Low Stock: '+lowCount, pageW/2, fY+11, {align:'center'});
+            doc.save('Chamunda_Stock_'+dateStamp+'_'+hh+mn+'.pdf');
+        }
+    }
+
+    // ── THEME ──
+    function toggleTheme() {
+        const t = document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+        document.documentElement.setAttribute('data-theme', t);
+    }
+
+    // ── INIT ──
+    document.getElementById('t-date').valueAsDate = new Date();
+    document.getElementById('rep-month').value = new Date().toISOString().substring(0,7);
+    setMode('OUT');
+</script>
+</body>
+</html>
