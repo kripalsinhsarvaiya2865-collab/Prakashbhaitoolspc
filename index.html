@@ -1,536 +1,1290 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="gu">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Expense Manager Premium</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    
+    <title>Chamunda CNC Tools</title>
+
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
     <style>
         :root {
-            --primary: #4F46E5; /* Premium Indigo */
-            --primary-light: #EEF2FF;
-            --danger: #EF4444; 
-            --success: #10B981; 
-            --warning: #F59E0B;
-            --bg-color: #F9FAFB; 
-            --nav-bg: #ffffff; 
-            --text-main: #111827; 
-            --text-muted: #6B7280;
-            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            --premium-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+            --bg: #f0f2f5; --text: #1a1a2e; --card: #ffffff;
+            --nav: #ffffff; --pri: #c62828; --sec: #2e7d32;
+            --border: #e0e0e0; --muted: #7a7a8c;
+            --pri-light: #ffebee; --sec-light: #e8f5e9;
+            --shadow: 0 4px 16px rgba(0,0,0,0.08);
+            --radius: 16px;
+        }
+        [data-theme="dark"] {
+            --bg: #0d0d14; --text: #eaeaf5; --card: #1a1a2a;
+            --nav: #12121e; --pri: #ef5350; --sec: #4caf50;
+            --border: #2a2a3e; --muted: #9090a8;
+            --pri-light: rgba(239,83,80,0.1); --sec-light: rgba(76,175,80,0.1);
+            --shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--bg-color); 
-            margin: 0; padding: 0; 
-            display: flex; flex-direction: column; 
-            height: 100vh; color: var(--text-main);
-            -webkit-font-smoothing: antialiased;
-        }
-        
-        .app-header { 
-            background-color: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            color: var(--text-main); 
-            padding: 18px 24px; 
-            font-size: 18px; font-weight: 800; 
-            position: fixed; top: 0; width: 100%; z-index: 100; 
-            box-sizing: border-box; display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg); color: var(--text);
+            margin: 0; padding-bottom: 88px;
+            transition: background 0.3s, color 0.3s;
+            overflow-x: hidden;
+            font-size: 16px;
         }
 
-        .app-content { margin-top: 70px; margin-bottom: 95px; padding: 20px; flex-grow: 1; overflow-y: auto; }
-        
-        .page { display: none; transition: all 0.3s ease; }
-        .page.active { display: block; animation: fadeIn 0.4s ease; }
+        /* ── HEADER ── */
+        .header {
+            background: var(--pri);
+            padding: 14px 16px 12px;
+            position: sticky; top: 0; z-index: 900;
+            box-shadow: 0 3px 16px rgba(198,40,40,0.35);
+        }
+        .header-row { display: flex; align-items: center; justify-content: space-between; }
+        .header h3 { margin: 0; color: #fff; font-size: 19px; font-weight: 800; letter-spacing: 0.3px; }
+        .header-sub { color: rgba(255,255,255,0.78); font-size: 12px; margin-top: 3px; font-weight: 500; }
+        #sync-status {
+            font-size: 12px; font-weight: 700;
+            background: rgba(255,255,255,0.18);
+            color: #fff; padding: 5px 12px; border-radius: 20px;
+            white-space: nowrap; letter-spacing: 0.3px;
+        }
+        #sync-status.online { background: rgba(76,175,80,0.55); }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        /* ── CONTAINER ── */
+        .container { padding: 14px; max-width: 600px; margin: auto; }
 
-        .card { 
-            background-color: white; border-radius: 16px; padding: 20px; 
-            box-shadow: var(--card-shadow); margin-bottom: 20px; 
-            border: 1px solid rgba(0,0,0,0.02);
+        /* ── CARD ── */
+        .card {
+            background: var(--card); border-radius: var(--radius);
+            margin-bottom: 14px; padding: 18px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        .card-title {
+            font-size: 16px; font-weight: 800; color: var(--pri);
+            margin: 0 0 16px; padding-bottom: 12px;
+            border-bottom: 2px solid var(--pri-light);
+            display: flex; align-items: center; gap: 8px;
+            letter-spacing: 0.2px;
         }
 
-        h3 { font-weight: 700; letter-spacing: -0.02em; margin-bottom: 18px; font-size: 1.1rem; }
-
-        .form-group { margin-bottom: 18px; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-        
-        select, input { 
-            width: 100%; padding: 14px; border: 1.5px solid #F3F4F6; border-radius: 12px; 
-            font-size: 15px; font-family: 'Inter', sans-serif; box-sizing: border-box; 
-            background-color: #F9FAFB; transition: all 0.2s ease;
-            color: var(--text-main);
-            height: 48px; /* Ensure uniform height for all inputs/selects */
+        /* ── FORM ── */
+        label {
+            font-size: 12px; font-weight: 700; color: var(--muted);
+            display: block; margin-top: 14px; margin-bottom: 5px;
+            text-transform: uppercase; letter-spacing: 0.6px;
         }
-        select:focus, input:focus { outline: none; border-color: var(--primary); background-color: white; box-shadow: 0 0 0 4px var(--primary-light); }
-
-        .row-flex { display: flex; gap: 12px; } .row-flex .form-group { flex: 1; }
-
-        /* Reports Filter Grid */
-        .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-        .full-row { grid-column: span 2; }
-
-        button { transition: all 0.2s active; cursor: pointer; }
-        button:active { transform: scale(0.97); }
-
-        button.primary-btn { 
-            width: 100%; padding: 16px; background-color: var(--primary); color: white; border: none; 
-            border-radius: 14px; font-size: 16px; font-weight: 700; 
-            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
-            height: 54px;
+        input, select {
+            width: 100%; padding: 13px 15px;
+            border-radius: 11px; border: 2px solid var(--border);
+            background: var(--bg); color: var(--text);
+            font-size: 16px; outline: none;
+            transition: border 0.2s, box-shadow 0.2s;
+            font-family: inherit;
         }
-        button.danger-btn { background-color: #FEF2F2; color: var(--danger); border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 13px; }
-        button.warning-btn { background-color: #FFFBEB; color: #B45309; border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 13px; }
-        button.success-btn { background-color: var(--success); color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; width: 100%; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2); height: 48px; }
-        
-        .bottom-nav { 
-            position: fixed; bottom: 15px; left: 15px; right: 15px; height: 75px;
-            background-color: rgba(255, 255, 255, 0.95); 
-            backdrop-filter: blur(10px);
-            display: flex; justify-content: space-around; padding: 10px 0; 
-            box-shadow: var(--premium-shadow); z-index: 100; 
-            border-radius: 24px; border: 1px solid rgba(0,0,0,0.05);
-            box-sizing: border-box;
+        input:focus, select:focus {
+            border-color: var(--pri);
+            box-shadow: 0 0 0 3px var(--pri-light);
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: #9CA3AF; text-decoration: none; font-size: 10px; font-weight: 600; cursor: pointer; width: 25%; transition: all 0.3s ease;}
-        .nav-item .material-icons { font-size: 28px; margin-bottom: 4px; transition: all 0.3s ease;}
-        .nav-item.active { color: var(--primary); }
+        [data-theme="dark"] input,
+        [data-theme="dark"] select { background: #20202e; }
 
-        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid #F3F4F6; }
-        
-        .data-card { 
-            background: white; border-radius: 18px; padding: 20px; margin-bottom: 16px; 
-            box-shadow: var(--card-shadow); border: 1px solid rgba(0,0,0,0.03);
-            position: relative; overflow: hidden;
+        button {
+            width: 100%; padding: 15px; border-radius: 12px; border: none;
+            background: var(--pri); color: white;
+            font-size: 16px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; margin-top: 12px; letter-spacing: 0.3px;
+            font-family: inherit;
         }
-        .data-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--primary); opacity: 0.8; }
-        
-        .data-card-header { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-        .data-card-title { font-weight: 800; font-size: 17px; margin-bottom: 4px; color: var(--text-main); letter-spacing: -0.02em; }
-        .data-card-subtitle { font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 18px;}
-        .data-card-amount { font-size: 20px; font-weight: 800; color: var(--primary); letter-spacing: -0.03em; }
-        
-        .total-banner { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; padding: 18px; border-radius: 16px; text-align: center; font-weight: 800; font-size: 20px; margin-bottom: 20px; box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2); }
-        
-        #loader { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9); z-index: 999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: 700; color: var(--primary); display: none;}
-        
-        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        button:active { transform: scale(0.97); opacity: 0.88; }
+
+        /* ── MODE BUTTONS ── */
+        .mode-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+        .mode-btn {
+            padding: 16px 8px; border-radius: 14px;
+            border: 2.5px solid transparent;
+            font-size: 14px; font-weight: 700; cursor: pointer;
+            transition: all 0.2s; text-align: center; line-height: 1.5;
+            font-family: inherit;
+        }
+        .mode-btn .m-icon { font-size: 28px; display: block; margin-bottom: 5px; }
+        .mode-btn.active  { opacity: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.18); border-color: currentColor; }
+        .mode-btn.inactive { opacity: 0.38; }
+        .btn-out { background: #ede7f6; color: #6a1b9a; }
+        .btn-in  { background: #e8f5e9; color: #2e7d32; }
+
+        /* ── SAVE BUTTON ── */
+        .btn-save {
+            background: linear-gradient(135deg, #2e7d32, #1b5e20);
+            font-size: 17px; padding: 17px; border-radius: 14px;
+            box-shadow: 0 5px 18px rgba(46,125,50,0.38); margin-top: 20px;
+        }
+
+        /* ── SMALL BUTTONS ── */
+        .btn-sm   { width:auto; padding:7px 13px; font-size:13px; margin:2px; border-radius:8px; margin-top:0; }
+        .btn-edit { background: #f57c00; }
+        .btn-del  { background: #c62828; }
+        .btn-sec  { background: #455a64; }
+
+        /* ── BOTTOM NAV ── */
+        .bottom-nav {
+            position: fixed; bottom: 0; width: 100%; background: var(--nav);
+            display: flex; border-top: 1.5px solid var(--border);
+            height: 76px; box-shadow: 0 -6px 24px rgba(0,0,0,0.12); z-index: 800;
+        }
+        .nav-item {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer; gap: 4px; color: var(--muted);
+            font-size: 11px; font-weight: 600; transition: all 0.2s;
+            letter-spacing: 0.2px; padding-top: 2px;
+        }
+        .nav-icon { font-size: 24px; line-height: 1; }
+        .nav-item.active-nav {
+            color: var(--pri);
+            border-top: 3px solid var(--pri);
+            background: var(--pri-light);
+        }
+
+        /* ── TABLE ── */
+        .hidden { display: none; }
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 300px; }
+        th, td { padding: 11px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+        th {
+            background: var(--pri-light); color: var(--pri);
+            font-size: 11px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            position: sticky; top: 0;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(0,0,0,0.02); }
+        [data-theme="dark"] tr:hover td { background: rgba(255,255,255,0.03); }
+
+        /* ── MASTER ITEM ── */
+        .master-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 4px; border-bottom: 1px solid var(--border);
+        }
+        .master-item:last-child { border-bottom: none; }
+        .master-item-info { display: flex; flex-direction: column; gap: 4px; }
+        .master-item-name { font-size: 15px; font-weight: 700; }
+        .master-item-sub  { font-size: 12px; color: var(--muted); }
+        .action-btns { display: flex; gap: 6px; flex-shrink: 0; }
+
+        /* ── SEARCH DROPDOWN ── */
+        .search-container { position: relative; }
+        .search-results {
+            position: absolute; background: var(--card); width: 100%;
+            border: 2px solid var(--pri); z-index: 200;
+            max-height: 200px; overflow-y: auto;
+            border-radius: 12px; display: none;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.18); top: calc(100% + 5px);
+        }
+        .search-results div {
+            padding: 13px 15px; cursor: pointer;
+            border-bottom: 1px solid var(--border); font-size: 15px;
+        }
+        .search-results div:last-child { border-bottom: none; }
+        .search-results div:hover { background: var(--pri-light); }
+
+        /* ── FILTER / PDF ── */
+        .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .pdf-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .pdf-btns button { font-size: 14px; padding: 14px 6px; border-radius: 12px; margin-top: 0; }
+        .btn-pdf1 { background: linear-gradient(135deg,#0097a7,#006064); }
+        .btn-pdf2 { background: linear-gradient(135deg,#ad1457,#880e4f); }
+        .btn-pdf3 { background: linear-gradient(135deg,#f57c00,#bf360c); }
+        .btn-pdf4 { background: linear-gradient(135deg,#2e7d32,#1b5e20); }
+        .btn-theme {
+            background: linear-gradient(135deg,#37474f,#263238);
+            display:flex; align-items:center; justify-content:center; gap:10px;
+            font-size: 16px;
+        }
+
+        /* ── STOCK BADGES ── */
+        .stock-ok  {
+            display:inline-block; background: var(--sec-light); color: var(--sec);
+            border-radius:8px; padding:3px 10px; font-weight:800; font-size:14px;
+        }
+        .stock-low {
+            display:inline-block; background: var(--pri-light); color: #c62828;
+            border-radius:8px; padding:3px 10px; font-weight:800; font-size:14px;
+        }
+        .type-out {
+            display: inline-block;
+            background:#ede7f6; color:#6a1b9a; border-radius:6px;
+            padding:2px 8px; font-size:11px; font-weight:800;
+        }
+        .type-in  {
+            display: inline-block;
+            background: var(--sec-light); color: var(--sec); border-radius:6px;
+            padding:2px 8px; font-size:11px; font-weight:800;
+        }
+
+        /* ── DUPLICATE ── */
+        .duplicate-tool { background: rgba(255,193,7,0.12) !important; border-left: 4px solid #ffc107 !important; }
+        .dup-badge { background:#ffc107; color:#000; font-size:10px; font-weight:800; padding:2px 7px; border-radius:10px; margin-left:6px; }
+
+        /* ── TWO-COL INPUT ── */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* ── EDIT MODAL ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.6); z-index: 1000;
+            align-items: flex-end; justify-content: center;
+            backdrop-filter: blur(3px);
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: var(--card); width: 100%; max-width: 500px;
+            border-radius: 22px 22px 0 0; padding: 24px 18px 36px;
+            box-shadow: 0 -8px 40px rgba(0,0,0,0.25);
+            animation: slideUp 0.28s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .modal-title {
+            font-size: 17px; font-weight: 800; color: var(--pri);
+            margin: 0 0 18px; padding-bottom: 14px;
+            border-bottom: 2px solid var(--pri-light);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .modal-close {
+            margin-left: auto; background: var(--border); color: var(--text);
+            width: 32px; height: 32px; border-radius: 50%; border: none;
+            font-size: 16px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; padding: 0;
+        }
+        .btn-update {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            box-shadow: 0 5px 18px rgba(245,124,0,0.38);
+            margin-top: 18px; border-radius: 14px; padding: 16px;
+        }
+
+        /* ── HISTORY SECTION SPECIFIC ── */
+        .history-filter-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            margin-bottom: 2px;
+        }
+        .history-count-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--pri-light); color: var(--pri);
+            border-radius: 20px; padding: 4px 12px;
+            font-size: 12px; font-weight: 700; margin-left: auto;
+        }
+
+        /* ── HISTORY CARD LIST ── */
+        .hist-item {
+            padding: 11px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .hist-item:last-child { border-bottom: none; }
+        .hist-top-row {
+            display: flex; align-items: center;
+            justify-content: space-between; gap: 8px;
+        }
+        .hist-tool-name {
+            font-size: 15px; font-weight: 700;
+            flex: 1; line-height: 1.3;
+        }
+        .hist-qty {
+            font-size: 20px; font-weight: 800;
+            color: var(--pri); white-space: nowrap;
+        }
+        .hist-bottom-row {
+            display: flex; align-items: center;
+            justify-content: space-between; gap: 6px;
+        }
+        .hist-meta {
+            display: flex; align-items: center;
+            gap: 6px; flex-wrap: wrap;
+        }
+        .hist-date { font-size: 12px; color: var(--muted); font-weight: 600; }
+        .hist-op   { font-size: 12px; color: var(--muted); }
+        .hist-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .hist-btn {
+            width: 34px; height: 34px; border-radius: 9px;
+            border: none; cursor: pointer; font-size: 16px;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0; margin: 0;
+        }
+        .hist-btn-edit { background: #fff3e0; color: #e65100; }
+        .hist-btn-del  { background: #ffebee; color: #c62828; }
+        [data-theme="dark"] .hist-btn-edit { background: rgba(230,81,0,0.18); color: #ff8a50; }
+        [data-theme="dark"] .hist-btn-del  { background: rgba(198,40,40,0.18); color: #ef9a9a; }
+
+        /* ── STATS ROW ── */
+        .stats-row {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+            margin-bottom: 14px;
+        }
+        .stat-box {
+            background: var(--card); border-radius: 14px; padding: 14px 10px;
+            text-align: center; border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .stat-num { font-size: 22px; font-weight: 800; color: var(--pri); line-height: 1.1; }
+        .stat-label { font-size: 11px; color: var(--muted); font-weight: 600; margin-top: 3px; }
+
+        /* ── ALERT SECTION ── */
+        .alert-summary-row {
+            display: grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+            margin-bottom: 14px;
+        }
+        .alert-sum-box {
+            border-radius: 14px; padding: 16px 8px; text-align: center;
+            box-shadow: var(--shadow); border: 1px solid var(--border);
+        }
+        .alert-sum-zero { background: #ffebee; border-color: #ef9a9a; }
+        .alert-sum-low  { background: #fff3e0; border-color: #ffcc80; }
+        .alert-sum-ok   { background: #e8f5e9; border-color: #a5d6a7; }
+        [data-theme="dark"] .alert-sum-zero { background: rgba(198,40,40,0.15); border-color: rgba(198,40,40,0.3); }
+        [data-theme="dark"] .alert-sum-low  { background: rgba(230,81,0,0.15);  border-color: rgba(230,81,0,0.3); }
+        [data-theme="dark"] .alert-sum-ok   { background: rgba(46,125,50,0.15); border-color: rgba(46,125,50,0.3); }
+        .alert-sum-num  { font-size: 26px; font-weight: 800; line-height: 1.1; }
+        .alert-sum-zero .alert-sum-num { color: #c62828; }
+        .alert-sum-low  .alert-sum-num { color: #e65100; }
+        .alert-sum-ok   .alert-sum-num { color: #2e7d32; }
+        .alert-sum-lbl  { font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 4px; }
+
+        /* Alert items */
+        .alert-item {
+            border-radius: 12px; padding: 14px;
+            margin-bottom: 10px; border: 1.5px solid;
+        }
+        .alert-item:last-child { margin-bottom: 0; }
+        .alert-item-zero { background: #fff5f5; border-color: #ffcdd2; }
+        .alert-item-low  { background: #fff8f0; border-color: #ffe0b2; }
+        [data-theme="dark"] .alert-item-zero { background: rgba(198,40,40,0.1);  border-color: rgba(198,40,40,0.25); }
+        [data-theme="dark"] .alert-item-low  { background: rgba(230,81,0,0.1);   border-color: rgba(230,81,0,0.25); }
+        .alert-item-top {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            gap: 8px; margin-bottom: 4px;
+        }
+        .alert-item-name { font-size: 15px; font-weight: 800; flex: 1; }
+        .alert-item-avail { font-size: 14px; font-weight: 800; white-space: nowrap; }
+        .alert-avail-zero { color: #c62828; }
+        .alert-avail-low  { color: #e65100; }
+        .alert-item-cat   { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+        .alert-progress-bar {
+            width: 100%; height: 7px; background: var(--border);
+            border-radius: 6px; overflow: hidden; margin-bottom: 10px;
+        }
+        .alert-progress-fill { height: 100%; border-radius: 6px; transition: width 0.4s; }
+        .alert-item-stats {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 5px 10px; font-size: 13px; color: var(--text);
+        }
+        .alert-item-stats span { white-space: nowrap; }
+
+        /* Nav alert dot */
+        .nav-alert-dot {
+            display: inline-flex; align-items: center; justify-content: center;
+            background: #c62828; color: #fff;
+            font-size: 10px; font-weight: 800;
+            width: 18px; height: 18px; border-radius: 50%;
+            margin-left: 2px; vertical-align: middle;
+        }
+        .has-alert { color: #c62828 !important; }
+        .has-alert .nav-icon::after {
+            content: ''; display: block; width: 8px; height: 8px;
+            background: #c62828; border-radius: 50%;
+            position: absolute; top: 8px; right: calc(50% - 14px);
+            border: 2px solid var(--nav);
+        }
+        .nav-item { position: relative; }
+
+        /* ── SECTION DIVIDER ── */
+        .sec-label {
+            font-size: 11px; font-weight: 800; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin: 18px 0 10px; padding-left: 4px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="app-header">
-        <span>Expense Management</span>
-        <i class="material-icons" onclick="initAppData()" style="color: var(--primary); font-size: 26px;">sync</i>
+<!-- HEADER -->
+<div class="header">
+    <div class="header-row">
+        <div>
+            <h3>⚙️ Chamunda Eng Tools</h3>
+            <div class="header-sub">Shri Chamunda CNC Workshop</div>
+        </div>
+        <div id="sync-status">Connecting...</div>
     </div>
-    
-    <div id="loader">
-        <div style="width: 40px; height: 40px; border: 4px solid var(--primary-light); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px;"></div>
-        <span>UPDATING CLOUD</span>
-    </div>
-    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+</div>
 
-    <div class="app-content">
+<div class="container">
 
-        <div id="page-entry" class="page active">
-            <div class="card">
-                <h3 id="form-title" style="color: var(--primary);">New Entry</h3>
-                <form id="expense-form">
-                    <input type="hidden" id="edit-id" value="">
-                    <div class="row-flex">
-                        <div class="form-group">
-                            <label>Period</label>
-                            <select id="month" required>
-                                <option value="January">January</option><option value="February">February</option><option value="March">March</option>
-                                <option value="April">April</option><option value="May">May</option><option value="June">June</option>
-                                <option value="July">July</option><option value="August">August</option><option value="September">September</option>
-                                <option value="October">October</option><option value="November">November</option><option value="December">December</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>&nbsp;</label>
-                            <select id="year" required></select>
-                        </div>
-                    </div>
-                    <div class="form-group"><label>Company Entity</label><select id="company" required></select></div>
-                    <div class="form-group"><label>Recipient / Payee</label><select id="payee" required></select></div>
-                    <div class="form-group"><label>Expense Category</label><select id="category" required></select></div>
-                    <div class="form-group"><label>Transaction Amount (₹)</label><input type="number" id="amount" min="1" step="1" placeholder="0.00" required></div>
-                    
-                    <div style="margin-top: 10px;">
-                        <button type="submit" id="submit-btn" class="primary-btn">Save Entry</button>
-                        <button type="button" id="cancel-edit-btn" class="danger-btn" style="display:none; width:100%; margin-top:10px;" onclick="resetExpenseForm()">Cancel Changes</button>
-                    </div>
-                </form>
-                <div id="message"></div>
+    <!-- ══ ENTRY SECTION ══ -->
+    <div id="entry-sec">
+
+        <!-- Stats Row -->
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-num" id="stat-tools">–</div>
+                <div class="stat-label">🔧 ટૂલ</div>
             </div>
-
-            <div class="card" style="text-align: center; background: linear-gradient(to bottom, #ffffff, #F9FAFB);">
-                <label>Available Balance</label>
-                <h1 id="wallet-balance" style="font-size: 38px; font-weight: 900; margin: 8px 0 25px 0; color: var(--text-main); letter-spacing: -0.04em;">₹ 0.00</h1>
-                
-                <div class="row-flex">
-                    <div class="form-group" style="flex:1;"><input type="number" id="w-amt" placeholder="₹ Amount"></div>
-                    <div class="form-group" style="flex:1.5;"><input type="text" id="w-remark" placeholder="Note"></div>
-                </div>
-                <div class="row-flex">
-                    <button class="success-btn" onclick="processWallet('add')" style="background-color: #10B981;">Deposit</button>
-                    <button class="danger-btn" onclick="processWallet('remove')" style="background-color: #FEE2E2; color: #B91C1C; width: 100%; border-radius: 12px; font-weight: 700;">Withdraw</button>
-                </div>
+            <div class="stat-box">
+                <div class="stat-num" id="stat-txn">–</div>
+                <div class="stat-label">📋 ટ્રાન્ઝ.</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="stat-low" style="color:#c62828">–</div>
+                <div class="stat-label">⚠️ Low Stock</div>
             </div>
         </div>
 
-        <div id="page-reports" class="page">
-            <div class="card" style="background-color: #F3F4F6; border: none; padding: 15px;">
-                <div class="filter-grid">
-                    <select id="r-month" onchange="renderReports()"><option value="All">All Months</option></select>
-                    <select id="r-year" onchange="renderReports()"><option value="All">All Years</option></select>
-                    <select id="r-comp" onchange="renderReports()"><option value="All">All Companies</option></select>
-                    <select id="r-payee" onchange="renderReports()"><option value="All">All Payees</option></select>
-                    <select id="r-cat" onchange="renderReports()" class="full-row"><option value="All">All Categories</option></select>
+        <div class="card">
+            <div class="card-title">✒️ નવી એન્ટ્રી</div>
+
+            <label>તારીખ</label>
+            <input type="date" id="t-date">
+
+            <label>ટ્રાન્ઝેક્શન પ્રકાર</label>
+            <div class="mode-btns">
+                <div class="mode-btn btn-out active" id="btnOut" onclick="setMode('OUT')">
+                    <span class="m-icon">🔧</span>
+                    Tool Out<br><small>વપરાશ / Issue</small>
+                </div>
+                <div class="mode-btn btn-in inactive" id="btnIn" onclick="setMode('PURCHASE')">
+                    <span class="m-icon">📦</span>
+                    Purchase<br><small>નવી ખરીદી</small>
                 </div>
             </div>
-            <div class="total-banner" id="report-total">₹ 0.00</div>
-            <div id="reports-container"></div>
+
+            <div id="entry-fields"></div>
+
+            <button class="btn-save" onclick="saveTransaction()">✅ સેવ કરો</button>
+        </div>
+    </div>
+
+    <!-- ══ HISTORY SECTION ══ -->
+    <div id="history-sec" class="hidden">
+        <div class="card">
+            <div class="card-title">🔍 ઇતિહાસ ફિલ્ટર</div>
+            <div class="history-filter-row">
+                <div>
+                    <label>મહિનો</label>
+                    <input type="month" id="hist-month" onchange="updateHistoryTable()">
+                </div>
+                <div>
+                    <label>ઓપ / સ.</label>
+                    <select id="hist-op" onchange="onHistFilter('op')"></select>
+                </div>
+            </div>
+            <div>
+                <label>🔧 ટૂલ ફિલ્ટર</label>
+                <select id="hist-tool" onchange="onHistFilter('tool')"></select>
+            </div>
+            <label>🔎 શોધ (નામ / ટૂલ)</label>
+            <input type="text" id="hist-search" placeholder="ટાઈપ કરો..." oninput="updateHistoryTable()">
         </div>
 
-        <div id="page-wallet" class="page">
-            <h3 style="padding-left: 5px;">Transaction History</h3>
-            <div id="wallet-history-container"></div>
-        </div>
-        
-        <div id="page-masters" class="page">
-            <div class="form-group">
-                <label>Managing Database</label>
-                <select id="master-selector" onchange="renderMasters()" style="background-color: white;">
-                    <option value="companies">Companies</option>
-                    <option value="payees">Payees</option>
-                    <option value="categories">Categories</option>
-                </select>
+        <div class="card">
+            <div class="card-title">
+                🕒 ઇતિહાસ
+                <span class="history-count-badge" id="hist-count-badge">0 એન્ટ્રી</span>
             </div>
-            <div class="card">
-                <div class="row-flex">
-                    <input type="text" id="master-input" placeholder="New item name...">
-                    <button class="primary-btn" style="width:auto; padding:0 25px; border-radius: 12px; box-shadow: none;" onclick="addMaster()">Add</button>
+            <div id="history-body-main"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📥 ઇતિહાસ PDF</div>
+            <button class="btn-pdf1" onclick="downloadPDF('HISTORY')" style="margin-top:0;">📋 વ્યવહાર PDF ડાઉનલોડ</button>
+        </div>
+    </div>
+
+    <!-- ══ REPORT SECTION ══ -->
+    <div id="report-sec" class="hidden">
+        <div class="card">
+            <div class="card-title">🔍 ફિલ્ટર</div>
+            <div class="filter-grid">
+                <div>
+                    <label>મહિનો</label>
+                    <input type="month" id="rep-month" onchange="updateAllReports()">
+                </div>
+                <div>
+                    <label>કેટેગરી</label>
+                    <select id="rep-cat" onchange="updateAllReports()"></select>
                 </div>
             </div>
-            <div id="masters-container"></div>
+            <label>🔧 ટૂલ ફિલ્ટર</label>
+            <select id="rep-tool" onchange="updateAllReports()"></select>
+        </div>
+
+        <div class="card">
+            <div class="card-title">📥 PDF ડાઉનલોડ</div>
+            <div class="pdf-btns">
+                <button class="btn-pdf2" onclick="downloadPDF('STOCK')" style="margin-top:0;">📦 સ્ટોક</button>
+                <button class="btn-pdf3" onclick="downloadPDF('TOOLS')" style="margin-top:0;">🔧 ટૂલ લિસ્ટ</button>
+                <button class="btn-pdf4" onclick="downloadPDF('OPERATORS')" style="margin-top:0;">👤 ઓપરેટર</button>
+                <button class="btn-pdf1" onclick="downloadPDF('HISTORY')" style="margin-top:0;">📋 વ્યવહાર</button>
+            </div>
+        </div>
+
+        <div class="card table-responsive">
+            <div class="card-title">📦 સ્ટોક સ્ટેટસ</div>
+            <table>
+                <thead><tr><th>ટૂલ નામ</th><th>કેટ.</th><th>કુલ</th><th>બાકી</th></tr></thead>
+                <tbody id="stock-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ══ ALERT SECTION ══ -->
+    <div id="alert-sec" class="hidden">
+
+        <!-- Summary cards -->
+        <div class="alert-summary-row">
+            <div class="alert-sum-box alert-sum-zero">
+                <div class="alert-sum-num" id="alrt-zero-count">0</div>
+                <div class="alert-sum-lbl">⛔ ખાલી</div>
+            </div>
+            <div class="alert-sum-box alert-sum-low">
+                <div class="alert-sum-num" id="alrt-low-count">0</div>
+                <div class="alert-sum-lbl">⚠️ Low Stock</div>
+            </div>
+            <div class="alert-sum-box alert-sum-ok">
+                <div class="alert-sum-num" id="alrt-ok-count">0</div>
+                <div class="alert-sum-lbl">✅ ઓકે</div>
+            </div>
+        </div>
+
+        <!-- Zero stock -->
+        <div class="card" id="alrt-zero-card">
+            <div class="card-title" style="color:#b71c1c;">⛔ સ્ટોક ખાલી છે</div>
+            <div id="alrt-zero-list"></div>
+        </div>
+
+        <!-- Low stock -->
+        <div class="card" id="alrt-low-card">
+            <div class="card-title" style="color:#e65100;">⚠️ Low Stock — મર્યાદા કરતાં ઓછો</div>
+            <div id="alrt-low-list"></div>
+        </div>
+
+        <!-- All-clear -->
+        <div class="card hidden" id="alrt-allok-card">
+            <div style="text-align:center;padding:28px 0;">
+                <div style="font-size:52px;">✅</div>
+                <div style="font-size:17px;font-weight:800;color:var(--sec);margin-top:10px;">બધો સ્ટોક ઓકે છે!</div>
+                <div style="font-size:13px;color:var(--muted);margin-top:6px;">કોઈ ટૂલ Low અથવા ખાલી નથી</div>
+            </div>
         </div>
 
     </div>
 
-    <div class="bottom-nav">
-        <div class="nav-item active" onclick="switchPage('entry', 'Management')"><i class="material-icons">add_circle</i><span>Entry</span></div>
-        <div class="nav-item" onclick="switchPage('reports', 'Analysis')"><i class="material-icons">analytics</i><span>Reports</span></div>
-        <div class="nav-item" onclick="switchPage('wallet', 'History')"><i class="material-icons">account_balance_wallet</i><span>Wallet</span></div>
-        <div class="nav-item" onclick="switchPage('masters', 'Settings')"><i class="material-icons">dashboard_customize</i><span>Master</span></div>
+    <!-- ══ SETTINGS SECTION ══ -->
+    <div id="setting-sec" class="hidden">
+
+        <div class="card">
+            <div class="card-title">🌗 થીમ</div>
+            <button class="btn-theme" onclick="toggleTheme()">🌙 Dark &nbsp;/&nbsp; ☀️ Light Mode</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">👤 ઓપરેટર માસ્ટર</div>
+            <label>ઓપરેટર નામ</label>
+            <input type="text" id="new-op" placeholder="ઉદા: Ramesh, Suresh...">
+            <button onclick="addOperator()" style="background:var(--sec);">+ ઓપરેટર ઉમેરો</button>
+            <div id="op-list-display" style="margin-top:12px;"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" id="tool-master-title">🛠️ ટૂલ માસ્ટર</div>
+            <input type="hidden" id="edit-tool-index" value="-1">
+
+            <label>ટૂલ નામ</label>
+            <input type="text" id="new-tool" placeholder="ઉદા: VNMG Insert, Boring Bar">
+
+            <label>કેટેગરી</label>
+            <input type="text" id="new-cat" placeholder="ઉદા: Boring, Insert, Drill">
+
+            <div class="two-col">
+                <div>
+                    <label>ઓપનિંગ સ્ટોક</label>
+                    <input type="number" id="new-stock" placeholder="0" min="0">
+                </div>
+                <div>
+                    <label>મિનિ. એલર્ટ</label>
+                    <input type="number" id="min-limit" placeholder="0" min="0">
+                </div>
+            </div>
+
+            <button id="tool-btn" onclick="addToolMaster()">+ ટૂલ ઉમેરો</button>
+            <button id="cancel-edit" class="hidden btn-sec" onclick="cancelToolEdit()">✖ કેન્સલ</button>
+
+            <div id="tool-list-display" style="margin-top:14px;"></div>
+        </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+</div><!-- /container -->
 
-        const firebaseConfig = {
-            projectId: "expense-manager-sync",
-            appId: "1:717226692754:web:581b0f8d76d2bdda4e964b",
-            storageBucket: "expense-manager-sync.firebasestorage.app",
-            apiKey: "AIzaSyCWDSr2VSv9-FQQjuWFvr0Rvblent5Nr08",
-            authDomain: "expense-manager-sync.firebaseapp.com",
-            messagingSenderId: "717226692754",
-            projectNumber: "717226692754"
-        };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+<!-- EDIT TRANSACTION MODAL -->
+<div class="modal-overlay" id="edit-modal" onclick="closeEditModal(event)">
+    <div class="modal-box">
+        <div class="modal-title">
+            ✏️ વ્યવહાર સુધારો
+            <button class="modal-close" onclick="closeEditModal()">✕</button>
+        </div>
+        <input type="hidden" id="edit-tr-id">
+        <label>તારીખ</label>
+        <input type="date" id="edit-tr-date">
+        <label>ઓપરેટર / સપ્લાયર</label>
+        <input type="text" id="edit-tr-op">
+        <label>ટૂલ નામ</label>
+        <input type="text" id="edit-tr-tool" readonly style="opacity:0.55;">
+        <label>નંગ (Quantity)</label>
+        <input type="number" id="edit-tr-qty" min="1">
+        <button class="btn-update" onclick="saveEditTransaction()">✔ અપડેટ કરો</button>
+    </div>
+</div>
 
-        let masterData = { companies: {}, payees: {}, categories: {} };
-        let expensesList = [];
-        let walletList = [];
-        let currentBalance = 0;
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+    <div class="nav-item active-nav" id="n-entry" onclick="showSec('entry')">
+        <span class="nav-icon">✒️</span>એન્ટ્રી
+    </div>
+    <div class="nav-item" id="n-history" onclick="showSec('history')">
+        <span class="nav-icon">🕒</span>ઇતિહાસ
+    </div>
+    <div class="nav-item" id="n-alert" onclick="showSec('alert')">
+        <span class="nav-icon">🔔</span><span id="n-alert-label">અલર્ટ</span>
+    </div>
+    <div class="nav-item" id="n-report" onclick="showSec('report')">
+        <span class="nav-icon">📊</span>રિપોર્ટ
+    </div>
+    <div class="nav-item" id="n-setting" onclick="showSec('setting')">
+        <span class="nav-icon">⚙️</span>સેટિંગ્સ
+    </div>
+</nav>
 
-        function getSafeMillis(ts) {
-            if (!ts) return 0;
-            if (typeof ts === 'string') return new Date(ts).getTime() || 0;
-            return ts.toMillis ? ts.toMillis() : (ts.toDate ? ts.toDate().getTime() : 0);
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyCsqhpmQDF0X6ssqTxQ_p2d15VZDJMcE0g",
+        authDomain: "prakashbhaitools.firebaseapp.com",
+        projectId: "prakashbhaitools",
+        storageBucket: "prakashbhaitools.firebasestorage.app",
+        messagingSenderId: "362668027589",
+        appId: "1:362668027589:web:abb83273896edba9910aac",
+        databaseURL: "https://prakashbhaitools-default-rtdb.firebaseio.com"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    let db = { operators:[], tools:[], transactions:[] };
+    let currentMode = 'OUT';
+    let highlightDupIndex = -1;
+
+    database.ref('tools_data').on('value', snap => {
+        const data = snap.val();
+        if(data) {
+            db = data;
+            db.transactions = db.transactions || [];
+            db.operators    = db.operators    || [];
+            db.tools        = db.tools        || [];
+            renderMasterLists();
+            updateCategoryDropdown();
+            updateAllReports();
+            updateHistoryTable();
+            updateStats();
+            updateAlerts();
+            setMode(currentMode);
+            const el = document.getElementById('sync-status');
+            el.innerText = '✅ Online';
+            el.classList.add('online');
         }
+    });
 
-        function getSafeDateString(ts) {
-            if (!ts) return "N/A";
-            if (typeof ts === 'string') return ts;
-            return ts.toDate ? ts.toDate().toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : "N/A";
+    function syncToCloud() { database.ref('tools_data').set(db); }
+
+    // ── SHOW SECTION ──
+    function showSec(name) {
+        ['entry','history','alert','report','setting'].forEach(s => {
+            document.getElementById(s+'-sec').classList.add('hidden');
+        });
+        ['n-entry','n-history','n-alert','n-report','n-setting'].forEach(n => {
+            document.getElementById(n).classList.remove('active-nav');
+        });
+        document.getElementById(name+'-sec').classList.remove('hidden');
+        document.getElementById('n-'+name).classList.add('active-nav');
+        if(name === 'report')  { updateAllReports(); }
+        if(name === 'history') { updateHistoryDropdowns(); updateHistoryTable(); }
+        if(name === 'alert')   { updateAlerts(); }
+    }
+
+    // ── STATS ──
+    function updateStats() {
+        document.getElementById('stat-tools').innerText = db.tools.length;
+        document.getElementById('stat-txn').innerText   = db.transactions.length;
+        let low = db.tools.filter(t => {
+            let p   = db.transactions.filter(tr=>tr.tool===t.name&&tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+            let out = db.transactions.filter(tr=>tr.tool===t.name&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+            return ((t.initialStock||0)+p-out) <= (t.minLimit||0);
+        }).length;
+        document.getElementById('stat-low').innerText = low;
+        // Alert nav badge
+        const alertLabel = document.getElementById('n-alert-label');
+        if(low > 0) {
+            alertLabel.innerHTML = `અલર્ટ <span class="nav-alert-dot">${low}</span>`;
+            document.getElementById('n-alert').classList.add('has-alert');
+        } else {
+            alertLabel.innerText = 'અલર્ટ';
+            document.getElementById('n-alert').classList.remove('has-alert');
         }
+    }
 
-        window.switchPage = function(pageId, title) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.getElementById('page-' + pageId).classList.add('active');
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-            window.scrollTo(0,0);
-        };
+    // ── ENTRY MODE ──
+    function setMode(mode) {
+        currentMode = mode;
+        const bO = document.getElementById('btnOut');
+        const bI = document.getElementById('btnIn');
+        if(bO) {
+            bO.className = `mode-btn btn-out ${mode==='OUT'?'active':'inactive'}`;
+            bI.className = `mode-btn btn-in  ${mode==='PURCHASE'?'active':'inactive'}`;
+        }
+        let opOptions = db.operators.map(o=>`<option value="${o}">${o}</option>`).join('');
+        let html = mode === 'OUT'
+            ? `<label>ઓપરેટર</label><select id="sel-op">${opOptions||'<option>-- ઉમેરો --</option>'}</select>`
+            : `<label>સપ્લાયર / નોંધ</label><input type="text" id="sel-op" value="STOCK PURCHASE">`;
+        html += `<label>ટૂલ શોધો / પસંદ કરો</label>
+                 <div class="search-container">
+                   <input type="text" id="tool-search" placeholder="ટૂલ નામ ટાઈપ કરો..." oninput="filterTools(this.value)" autocomplete="off">
+                   <div id="search-res" class="search-results"></div>
+                   <input type="hidden" id="sel-tool">
+                 </div>
+                 <label>નંગ (Quantity)</label>
+                 <input type="number" id="sel-qty" value="1" min="1">`;
+        document.getElementById('entry-fields').innerHTML = html;
+    }
 
-        const showLoader = (show) => document.getElementById('loader').style.display = show ? 'flex' : 'none';
-        const showMsg = (text, type) => {
-            const m = document.getElementById('message'); m.innerText = text; m.className = type; m.style.display = 'block';
-            m.style.padding = "14px"; m.style.borderRadius = "12px"; m.style.marginTop = "15px"; m.style.fontSize = "14px";
-            setTimeout(() => m.style.display = 'none', 3000);
-        };
+    function filterTools(val) {
+        const res = document.getElementById('search-res');
+        if(!val) { res.style.display='none'; return; }
+        const f = db.tools.filter(t => t.name.toLowerCase().includes(val.toLowerCase()));
+        res.innerHTML = f.length
+            ? f.map(t=>`<div onclick="selectTool('${t.name.replace(/'/g,"\\'")}')"><b>${t.name}</b> <small style="color:var(--muted)">(${t.cat})</small></div>`).join('')
+            : `<div style="color:var(--muted)">ટૂલ મળ્યું નહીં</div>`;
+        res.style.display = 'block';
+    }
 
-        const monthsArr = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-        const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-        const currentYear = new Date().getFullYear();
-        
-        document.getElementById('month').value = currentMonth;
-        ['year', 'r-year'].forEach(id => {
-            let s = document.getElementById(id);
-            if (id === 'r-year') {
-                s.innerHTML = '<option value="All">All Years</option>';
-                for(let i=2020; i<=2030; i++) s.add(new Option(i, i));
+    function selectTool(name) {
+        document.getElementById('tool-search').value = name;
+        document.getElementById('sel-tool').value = name;
+        document.getElementById('search-res').style.display = 'none';
+    }
+
+    function saveTransaction() {
+        const date     = document.getElementById('t-date').value;
+        const toolName = document.getElementById('sel-tool').value || document.getElementById('tool-search').value;
+        const qty      = parseInt(document.getElementById('sel-qty').value);
+        const op       = document.getElementById('sel-op').value;
+        if(!date||!toolName||!qty||!op) return alert("⚠️ બધી વિગત ભરો!");
+        const toolData = db.tools.find(t => t.name === toolName);
+        if(!toolData) return alert("⚠️ આ ટૂલ માસ્ટરમાં નથી!");
+        db.transactions.push({
+            id: Date.now(), date, month: date.substring(0,7),
+            type: currentMode, op, tool: toolName, cat: toolData.cat, qty,
+            subType: currentMode==='PURCHASE'?'Purchase':'Issue'
+        });
+        syncToCloud();
+        updateStats();
+        alert("✅ એન્ટ્રી સેવ થઈ ગઈ!");
+        setMode(currentMode);
+    }
+
+    // ── OPERATORS ──
+    function addOperator() {
+        let val = document.getElementById('new-op').value.trim();
+        if(!val) return;
+        if(db.operators.includes(val)) return alert("⚠️ આ ઓપરેટર પહેલેથી છે!");
+        db.operators.push(val); syncToCloud();
+        alert("✅ ઓપરેટર સેવ થઈ ગયો!");
+        document.getElementById('new-op').value = '';
+    }
+
+    // ── TOOL MASTER ──
+    function addToolMaster() {
+        let name  = document.getElementById('new-tool').value.trim();
+        let cat   = document.getElementById('new-cat').value.trim() || 'General';
+        let stock = parseInt(document.getElementById('new-stock').value) || 0;
+        let limit = parseInt(document.getElementById('min-limit').value) || 0;
+        let index = parseInt(document.getElementById('edit-tool-index').value);
+        if(!name) return alert("⚠️ ટૂલ નામ જરૂરી છે!");
+        const dupIdx = db.tools.findIndex((t,i) => t.name.toLowerCase()===name.toLowerCase() && i!==index);
+        if(dupIdx > -1) {
+            highlightDupIndex = dupIdx;
+            renderMasterLists();
+            const items = document.querySelectorAll('#tool-list-display .master-item');
+            if(items[dupIdx]) items[dupIdx].scrollIntoView({ behavior:'smooth', block:'center' });
+            alert(`⚠️ "${name}" ટૂલ પહેલેથી જ છે!\nનીચે Yellow highlight જુઓ 👇`);
+            setTimeout(() => { highlightDupIndex=-1; renderMasterLists(); }, 3500);
+            return;
+        }
+        highlightDupIndex = -1;
+        if(index > -1) { db.tools[index]={name,cat,initialStock:stock,minLimit:limit}; alert("✅ ટૂલ અપડેટ!"); }
+        else { db.tools.push({name,cat,initialStock:stock,minLimit:limit}); alert("✅ ટૂલ સેવ!"); }
+        cancelToolEdit(); syncToCloud();
+    }
+
+    function editTool(index) {
+        const t = db.tools[index];
+        document.getElementById('tool-master-title').innerText = "🛠️ ટૂલ એડિટ";
+        document.getElementById('edit-tool-index').value = index;
+        document.getElementById('new-tool').value  = t.name;
+        document.getElementById('new-cat').value   = t.cat;
+        document.getElementById('new-stock').value = t.initialStock;
+        document.getElementById('min-limit').value = t.minLimit;
+        document.getElementById('tool-btn').innerText = "✔ અપડેટ કરો";
+        document.getElementById('cancel-edit').classList.remove('hidden');
+        window.scrollTo({ top:0, behavior:'smooth' });
+    }
+
+    function cancelToolEdit() {
+        document.getElementById('tool-master-title').innerText = "🛠️ ટૂલ માસ્ટર";
+        document.getElementById('edit-tool-index').value = "-1";
+        ['new-tool','new-cat','new-stock','min-limit'].forEach(id => document.getElementById(id).value='');
+        document.getElementById('tool-btn').innerText = "+ ટૂલ ઉમેરો";
+        document.getElementById('cancel-edit').classList.add('hidden');
+    }
+
+    function renderMasterLists() {
+        const noOp = `<p style="color:var(--muted);font-size:14px;text-align:center;margin:12px 0;">કોઈ ઓપરેટર નથી</p>`;
+        document.getElementById('op-list-display').innerHTML = db.operators.length
+            ? db.operators.map((o,i)=>`
+                <div class="master-item">
+                    <div class="master-item-info"><span class="master-item-name">👤 ${o}</span></div>
+                    <button class="btn-sm btn-del" onclick="deleteMaster('operators',${i})">✖</button>
+                </div>`).join('') : noOp;
+
+        const noTool = `<p style="color:var(--muted);font-size:14px;text-align:center;margin:12px 0;">કોઈ ટૂલ નથી</p>`;
+        document.getElementById('tool-list-display').innerHTML = db.tools.length
+            ? db.tools.map((t,i)=>`
+                <div class="master-item ${i===highlightDupIndex?'duplicate-tool':''}">
+                    <div class="master-item-info">
+                        <span class="master-item-name">🔧 ${t.name}${i===highlightDupIndex?'<span class="dup-badge">⚠️ DUPLICATE</span>':''}</span>
+                        <span class="master-item-sub">${t.cat} &nbsp;|&nbsp; ઓ.સ્ટ: ${t.initialStock} &nbsp;|&nbsp; Min: ${t.minLimit}</span>
+                    </div>
+                    <div class="action-btns">
+                        <button class="btn-sm btn-edit" onclick="editTool(${i})">✏️</button>
+                        <button class="btn-sm btn-del"  onclick="deleteMaster('tools',${i})">✖</button>
+                    </div>
+                </div>`).join('') : noTool;
+    }
+
+    function deleteMaster(key, index) {
+        if(confirm("ડીલીટ કરવું છે?")) {
+            let pass = prompt("🔑 પાસવર્ડ:");
+            if(pass==="1111") { db[key].splice(index,1); syncToCloud(); }
+            else if(pass!==null) alert("❌ ખોટો પાસવર્ડ!");
+        }
+    }
+
+    // ── DROPDOWNS ──
+    function updateCategoryDropdown() {
+        const cats = [...new Set(db.tools.map(t=>t.cat))];
+        let html = '<option value="ALL">બધી કેટેગરી</option>';
+        cats.forEach(c=>{ if(c) html+=`<option value="${c}">${c}</option>`; });
+        document.getElementById('rep-cat').innerHTML = html;
+
+        let toolHtml = '<option value="ALL">બધા ટૂલ</option>';
+        db.tools.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(t=>{ toolHtml+=`<option value="${t.name}">${t.name}</option>`; });
+        document.getElementById('rep-tool').innerHTML = toolHtml;
+    }
+
+    function updateHistoryDropdowns() {
+        let opHtml = '<option value="ALL">બધા ઓપ./સ.</option>';
+        db.operators.forEach(o=>{ opHtml+=`<option value="${o}">${o}</option>`; });
+        document.getElementById('hist-op').innerHTML = opHtml;
+
+        let toolHtml = '<option value="ALL">બધા ટૂલ</option>';
+        db.tools.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(t=>{ toolHtml+=`<option value="${t.name}">${t.name}</option>`; });
+        document.getElementById('hist-tool').innerHTML = toolHtml;
+    }
+
+    function onHistFilter(changed) {
+        if(changed==='op' && document.getElementById('hist-op').value!=='ALL') {
+            document.getElementById('hist-tool').value = 'ALL';
+        }
+        if(changed==='tool' && document.getElementById('hist-tool').value!=='ALL') {
+            document.getElementById('hist-op').value = 'ALL';
+        }
+        updateHistoryTable();
+    }
+
+    // ── HISTORY TABLE ──
+    function updateHistoryTable() {
+        const selMonth = document.getElementById('hist-month').value;
+        const selOp    = document.getElementById('hist-op') ? document.getElementById('hist-op').value : 'ALL';
+        const selTool  = document.getElementById('hist-tool') ? document.getElementById('hist-tool').value : 'ALL';
+        const search   = document.getElementById('hist-search') ? document.getElementById('hist-search').value.toLowerCase() : '';
+
+        let histHtml = '';
+        const filtered = db.transactions
+            .filter(tr =>
+                (!selMonth || tr.date.startsWith(selMonth)) &&
+                (selOp==='ALL'   || tr.op===selOp) &&
+                (selTool==='ALL' || tr.tool===selTool) &&
+                (tr.op.toLowerCase().includes(search) || tr.tool.toLowerCase().includes(search))
+            )
+            .slice().reverse();
+
+        const badge = document.getElementById('hist-count-badge');
+        if(badge) badge.innerText = filtered.length + ' એન્ટ્રી';
+
+        filtered.forEach(tr => {
+            const typeBadge = tr.type==='OUT'
+                ? `<span class="type-out">OUT</span>`
+                : `<span class="type-in">IN</span>`;
+            histHtml += `
+            <div class="hist-item">
+                <div class="hist-top-row">
+                    <span class="hist-tool-name">🔧 ${tr.tool}</span>
+                    <span class="hist-qty">${tr.qty} નંગ</span>
+                </div>
+                <div class="hist-bottom-row">
+                    <div class="hist-meta">
+                        <span class="hist-date">📅 ${tr.date}</span>
+                        <span class="hist-op">👤 ${tr.op}</span>
+                        ${typeBadge}
+                    </div>
+                    <div class="hist-actions">
+                        <button class="hist-btn hist-btn-edit" onclick="editTransaction(${tr.id})" title="Edit">✏️</button>
+                        <button class="hist-btn hist-btn-del"  onclick="deleteTransaction(${tr.id})" title="Delete">🗑️</button>
+                    </div>
+                </div>
+            </div>`;
+        });
+        document.getElementById('history-body-main').innerHTML = histHtml || `<p style="text-align:center;color:var(--muted);padding:24px 0;margin:0;">કોઈ ઇતિહાસ નથી</p>`;
+    }
+
+    // ── ALERTS ──
+    function updateAlerts() {
+        let zeroList = [], lowList = [], okCount = 0;
+
+        db.tools.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(t => {
+            let purchased = db.transactions.filter(tr=>tr.tool===t.name&&tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+            let used      = db.transactions.filter(tr=>tr.tool===t.name&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+            let avail     = (t.initialStock||0) + purchased - used;
+            let minLim    = t.minLimit || 0;
+
+            if(avail <= 0) {
+                zeroList.push({ name:t.name, cat:t.cat, avail, minLim, purchased, used, initial:t.initialStock||0 });
+            } else if(avail <= minLim) {
+                lowList.push({ name:t.name, cat:t.cat, avail, minLim, purchased, used, initial:t.initialStock||0 });
             } else {
-                for(let i=2020; i<=2030; i++) s.add(new Option(i, i, false, i === currentYear));
+                okCount++;
             }
         });
-        
-        let rMonth = document.getElementById('r-month');
-        monthsArr.forEach(m => rMonth.add(new Option(m, m)));
 
-        window.initAppData = async function() {
-            showLoader(true);
-            try {
-                for(let type of ['companies', 'payees', 'categories']) {
-                    masterData[type] = {};
-                    const snap = await getDocs(collection(db, type));
-                    snap.forEach(d => { masterData[type][d.id] = d.data().name; });
-                }
-                updateDropdowns();
+        // Summary counts
+        document.getElementById('alrt-zero-count').innerText = zeroList.length;
+        document.getElementById('alrt-low-count').innerText  = lowList.length;
+        document.getElementById('alrt-ok-count').innerText   = okCount;
 
-                walletList = []; currentBalance = 0;
-                const wSnap = await getDocs(collection(db, "wallet_transactions"));
-                wSnap.forEach(d => {
-                    let w = d.data(); w.id = d.id; walletList.push(w);
-                    if(w.type === 'add') currentBalance += parseFloat(w.amount);
-                    else currentBalance -= parseFloat(w.amount);
-                });
-                
-                walletList.sort((a,b) => getSafeMillis(b.created_at) - getSafeMillis(a.created_at));
-                document.getElementById('wallet-balance').innerText = `₹${currentBalance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-
-                expensesList = [];
-                const eSnap = await getDocs(collection(db, "expenses"));
-                eSnap.forEach(d => {
-                    let e = d.data(); e.id = d.id;
-                    e.company_name = masterData.companies[e.company_id] || "Unknown";
-                    e.payee_name = masterData.payees[e.payee_id] || "Unknown";
-                    e.category_name = masterData.categories[e.category_id] || "Unknown";
-                    expensesList.push(e);
-                });
-                
-                expensesList.sort((a,b) => (b.year - a.year) || (getSafeMillis(b.created_at) - getSafeMillis(a.created_at)));
-                renderReports(); renderMasters(); renderWalletHistory();
-            } catch(e) { console.error(e); alert("Cloud connection failed: " + e.message); }
-            showLoader(false);
-        };
-
-        function updateDropdowns() {
-            const types = { 'company': 'companies', 'payee': 'payees', 'category': 'categories' };
-            for(let [elId, mType] of Object.entries(types)) {
-                let s = document.getElementById(elId); s.innerHTML = '<option value="">Select...</option>';
-                Object.entries(masterData[mType]).sort((a,b)=>(a[1]||"").localeCompare(b[1]||"")).forEach(([id, name]) => s.add(new Option(name, id)));
-            }
-            let sC = document.getElementById('r-comp'); sC.innerHTML='<option value="All">All Companies</option>'; Object.values(masterData.companies).sort().forEach(n=>sC.add(new Option(n,n)));
-            let sCat = document.getElementById('r-cat'); sCat.innerHTML='<option value="All">All Categories</option>'; Object.values(masterData.categories).sort().forEach(n=>sCat.add(new Option(n,n)));
-            let sp = document.getElementById('r-payee'); sp.innerHTML='<option value="All">All Payees</option>'; Object.values(masterData.payees).sort().forEach(n=>sp.add(new Option(n,n)));
+        // Zero stock section
+        const zeroCard = document.getElementById('alrt-zero-card');
+        if(zeroList.length === 0) {
+            zeroCard.classList.add('hidden');
+        } else {
+            zeroCard.classList.remove('hidden');
+            document.getElementById('alrt-zero-list').innerHTML = zeroList.map(t => alertItemHTML(t, 'zero')).join('');
         }
 
-        async function getNextVoucherNo(companyId, month, year) {
-            const monthsEarly = ['January', 'February', 'March'];
-            const fyStartYear = monthsEarly.includes(month) ? year - 1 : year;
-            let maxV = 0;
-            const q = query(collection(db, "expenses"), where("company_id", "==", companyId));
-            const snap = await getDocs(q);
-            snap.forEach(doc => {
-                const d = doc.data(); const docY = parseInt(d.year); const docM = d.month;
-                if ((docY === fyStartYear && !monthsEarly.includes(docM)) || (docY === fyStartYear + 1 && monthsEarly.includes(docM))) {
-                    if (d.voucher_no > maxV) maxV = d.voucher_no;
-                }
-            });
-            return maxV + 1;
+        // Low stock section
+        const lowCard = document.getElementById('alrt-low-card');
+        if(lowList.length === 0) {
+            lowCard.classList.add('hidden');
+        } else {
+            lowCard.classList.remove('hidden');
+            document.getElementById('alrt-low-list').innerHTML = lowList.map(t => alertItemHTML(t, 'low')).join('');
         }
 
-        window.resetExpenseForm = function() {
-            document.getElementById('expense-form').reset();
-            document.getElementById('month').value = currentMonth; document.getElementById('year').value = currentYear;
-            document.getElementById('edit-id').value = "";
-            document.getElementById('form-title').innerText = "New Entry";
-            document.getElementById('submit-btn').innerText = "Save Entry";
-            document.getElementById('cancel-edit-btn').style.display = "none";
-        };
+        // All clear
+        const allOkCard = document.getElementById('alrt-allok-card');
+        if(zeroList.length === 0 && lowList.length === 0) {
+            allOkCard.classList.remove('hidden');
+        } else {
+            allOkCard.classList.add('hidden');
+        }
+    }
 
-        document.getElementById('expense-form').addEventListener('submit', async (e) => {
-            e.preventDefault(); showLoader(true);
-            try {
-                const editId = document.getElementById('edit-id').value;
-                const cId = document.getElementById('company').value;
-                const pId = document.getElementById('payee').value;
-                const catId = document.getElementById('category').value;
-                const amt = parseFloat(document.getElementById('amount').value);
-                const mon = document.getElementById('month').value;
-                const yr = parseInt(document.getElementById('year').value);
+    function alertItemHTML(t, type) {
+        const pct = t.minLim > 0 ? Math.min(100, Math.round((t.avail / t.minLim) * 100)) : 0;
+        const barColor = type === 'zero' ? '#c62828' : '#e65100';
+        const barWidth = type === 'zero' ? 0 : pct;
+        return `
+        <div class="alert-item alert-item-${type}">
+            <div class="alert-item-top">
+                <div class="alert-item-name">🔧 ${t.name}</div>
+                <div class="alert-item-avail alert-avail-${type}">${t.avail <= 0 ? '⛔ ખાલી' : t.avail + ' બાકી'}</div>
+            </div>
+            <div class="alert-item-cat">📁 ${t.cat}</div>
+            <div class="alert-progress-bar">
+                <div class="alert-progress-fill" style="width:${barWidth}%;background:${barColor};"></div>
+            </div>
+            <div class="alert-item-stats">
+                <span>📦 કુલ: <b>${t.initial + t.purchased}</b></span>
+                <span>🔧 વપરાશ: <b>${t.used}</b></span>
+                <span>⚠️ Min: <b>${t.minLim}</b></span>
+                <span class="alert-avail-${type}">✅ બાકી: <b>${t.avail}</b></span>
+            </div>
+        </div>`;
+    }
 
-                let docData = { month: mon, year: yr, company_id: cId, payee_id: pId, category_id: catId, amount: amt };
+    // ── REPORT (STOCK ONLY) ──
+    function updateAllReports() {
+        const selMonth = document.getElementById('rep-month').value;
+        const selCat   = document.getElementById('rep-cat').value;
+        const selTool  = document.getElementById('rep-tool').value;
 
-                if(editId) {
-                    await updateDoc(doc(db, "expenses", editId), docData);
-                    const wSnap = await getDocs(query(collection(db, "wallet_transactions"), where("expense_id", "==", editId)));
-                    wSnap.forEach(async (wd) => { await updateDoc(doc(db, "wallet_transactions", wd.id), { amount: amt, remark: `Exp: ${masterData.categories[catId]}` }); });
-                    showMsg("Database Updated", "success"); resetExpenseForm();
-                } else {
-                    const vNo = await getNextVoucherNo(cId, mon, yr);
-                    docData.voucher_no = vNo; docData.created_at = serverTimestamp();
-                    const newDoc = await addDoc(collection(db, "expenses"), docData);
-                    await addDoc(collection(db, "wallet_transactions"), { type: 'expense', amount: amt, remark: `Exp: ${masterData.categories[catId]}`, expense_id: newDoc.id, created_at: serverTimestamp() });
-                    showMsg(`Entry Created: #${vNo}`, "success"); resetExpenseForm();
-                }
-                initAppData(); 
-            } catch(err) { showMsg("Cloud Error", "error"); showLoader(false);}
+        let stockHtml = '';
+        db.tools.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(t => {
+            if(selCat!=='ALL' && t.cat!==selCat) return;
+            if(selTool!=='ALL' && t.name!==selTool) return;
+            let pQty   = db.transactions.filter(tr=>tr.tool===t.name&&tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+            let outQty = db.transactions.filter(tr=>tr.tool===t.name&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+            let avail  = (t.initialStock||0) + pQty - outQty;
+            let isLow  = avail <= (t.minLimit||0);
+            stockHtml += `<tr>
+                <td><b>${t.name}</b></td>
+                <td><small>${t.cat}</small></td>
+                <td style="font-size:15px">${(t.initialStock||0)+pQty}</td>
+                <td>${isLow?`<span class="stock-low">${avail} ⚠️</span>`:`<span class="stock-ok">${avail}</span>`}</td>
+            </tr>`;
         });
+        document.getElementById('stock-body').innerHTML = stockHtml || `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">કોઈ ડેટા નથી</td></tr>`;
+    }
 
-        window.startEditExpense = function(id) {
-            const exp = expensesList.find(e => e.id === id); if(!exp) return;
-            document.getElementById('month').value = exp.month; document.getElementById('year').value = exp.year;
-            document.getElementById('company').value = exp.company_id; document.getElementById('payee').value = exp.payee_id;
-            document.getElementById('category').value = exp.category_id; document.getElementById('amount').value = exp.amount;
-            document.getElementById('edit-id').value = exp.id;
-            document.getElementById('form-title').innerText = "Edit Record";
-            document.getElementById('submit-btn').innerText = "Update Record";
-            document.getElementById('cancel-edit-btn').style.display = "block";
-            window.scrollTo(0,0);
-            switchPage('entry', 'Management');
-        };
+    // ── EDIT TRANSACTION MODAL ──
+    function editTransaction(id) {
+        const tr = db.transactions.find(t => t.id === id);
+        if(!tr) return;
+        document.getElementById('edit-tr-id').value   = id;
+        document.getElementById('edit-tr-date').value = tr.date;
+        document.getElementById('edit-tr-op').value   = tr.op;
+        document.getElementById('edit-tr-tool').value = tr.tool;
+        document.getElementById('edit-tr-qty').value  = tr.qty;
+        document.getElementById('edit-modal').classList.add('open');
+    }
 
-        window.deleteExpense = async function(id) {
-            if(!confirm("Are you sure you want to delete this record?")) return;
-            showLoader(true);
-            try {
-                await deleteDoc(doc(db, "expenses", id));
-                const wSnap = await getDocs(query(collection(db, "wallet_transactions"), where("expense_id", "==", id)));
-                wSnap.forEach(async (wd) => await deleteDoc(doc(db, "wallet_transactions", wd.id)));
-                initAppData();
-            } catch(e) { alert("Error deleting."); showLoader(false); }
-        };
+    function closeEditModal(e) {
+        if(!e || e.target === document.getElementById('edit-modal'))
+            document.getElementById('edit-modal').classList.remove('open');
+    }
 
-        window.renderReports = function() {
-            const fm=document.getElementById('r-month').value, fy=document.getElementById('r-year').value, fc=document.getElementById('r-comp').value, fp=document.getElementById('r-payee').value, fcat=document.getElementById('r-cat').value;
-            let html = "", total = 0;
-            expensesList.filter(e => (fm==="All"||e.month===fm) && (fy==="All"||e.year==fy) && (fc==="All"||e.company_name===fc) && (fp==="All"||e.payee_name===fp) && (fcat==="All"||e.category_name===fcat))
-            .forEach(e => {
-                total += e.amount;
-                html += `<div class="data-card">
-                <div class="data-card-header"><span>${getSafeDateString(e.created_at)}</span><span class="data-card-amount">₹${e.amount.toLocaleString('en-IN')}</span></div>
-                    <div class="data-card-title">${e.company_name}</div><div class="data-card-subtitle">${e.category_name} &bull; ${e.payee_name}</div>
-                    <div class="action-btns" style="display:flex; gap:10px;">
-                        <button class="warning-btn" onclick="startEditExpense('${e.id}')">Edit</button>
-                        <button class="danger-btn" onclick="deleteExpense('${e.id}')">Delete</button>
-                    </div>
-                </div>`;
+    function saveEditTransaction() {
+        let pass = prompt("🔑 પાસવર્ડ:");
+        if(pass !== "1111") { if(pass !== null) alert("❌ ખોટો પાસવર્ડ!"); return; }
+        const id  = parseInt(document.getElementById('edit-tr-id').value);
+        const idx = db.transactions.findIndex(t => t.id === id);
+        if(idx === -1) return;
+        const newDate = document.getElementById('edit-tr-date').value;
+        const newOp   = document.getElementById('edit-tr-op').value.trim();
+        const newQty  = parseInt(document.getElementById('edit-tr-qty').value);
+        if(!newDate || !newOp || !newQty) return alert("⚠️ બધી વિગત ભરો!");
+        db.transactions[idx] = { ...db.transactions[idx], date: newDate, month: newDate.substring(0,7), op: newOp, qty: newQty };
+        syncToCloud();
+        document.getElementById('edit-modal').classList.remove('open');
+        updateHistoryTable();
+        updateAllReports();
+        alert("✅ અપડેટ થઈ ગયું!");
+    }
+
+    function deleteTransaction(id) {
+        if(confirm("ડીલીટ કરવો છે?")) {
+            let pass = prompt("🔑 પાસવર્ડ:");
+            if(pass==="1111") {
+                db.transactions=db.transactions.filter(t=>t.id!==id);
+                syncToCloud();
+                updateHistoryTable();
+                updateStats();
+            }
+            else if(pass!==null) alert("❌ ખોટો પાસવર્ડ!");
+        }
+    }
+
+    // ── THEME ──
+    function toggleTheme() {
+        const t = document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+        document.documentElement.setAttribute('data-theme', t);
+    }
+
+    // ── PDF ──
+    function addFooter(doc, pageW) {
+        const pg = doc.internal.getCurrentPageInfo().pageNumber;
+        const total = doc.internal.getNumberOfPages();
+        doc.setFontSize(8);
+        doc.setTextColor(160,160,160);
+        doc.setFont('helvetica','normal');
+        doc.text('Shri Chamunda Eng Tools — Confidential', 14, doc.internal.pageSize.getHeight()-8);
+        doc.text('Page ' + pg + ' / ' + total, doc.internal.pageSize.getWidth()-14, doc.internal.pageSize.getHeight()-8, { align:'right' });
+    }
+
+    function downloadPDF(type) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageW = doc.internal.pageSize.getWidth();
+
+        const now = new Date();
+        const dd   = String(now.getDate()).padStart(2,'0');
+        const mo   = String(now.getMonth()+1).padStart(2,'0');
+        const yyyy = now.getFullYear();
+        const hh   = String(now.getHours()).padStart(2,'0');
+        const mn   = String(now.getMinutes()).padStart(2,'0');
+        const dateStamp = dd+'-'+mo+'-'+yyyy;
+
+        // Get active month filter (history or report)
+        const selMonthEl = document.getElementById('hist-month') || document.getElementById('rep-month');
+        const selMonth   = selMonthEl ? selMonthEl.value : '';
+
+        // Red header
+        doc.setFillColor(198,40,40);
+        doc.rect(0,0,pageW,30,'F');
+        doc.setTextColor(255,255,255);
+        doc.setFontSize(17); doc.setFont('helvetica','bold');
+        doc.text('SHRI CHAMUNDA ENG TOOLS', pageW/2, 12, {align:'center'});
+        doc.setFontSize(9); doc.setFont('helvetica','normal');
+        const labelMap = { HISTORY:'TRANSACTION HISTORY REPORT', STOCK:'STOCK STATUS REPORT', TOOLS:'TOOL MASTER LIST', OPERATORS:'OPERATOR MASTER LIST' };
+        doc.text(labelMap[type]||'REPORT', pageW/2, 20, {align:'center'});
+        doc.setDrawColor(255,255,255); doc.setLineWidth(0.3);
+        doc.line(14,24,pageW-14,24);
+        doc.setFontSize(8);
+        doc.text('Period: '+(selMonth||'All Time'), 14, 29);
+        doc.text('Printed: '+dateStamp+' '+hh+':'+mn, pageW-14, 29, {align:'right'});
+        doc.setTextColor(30,30,30);
+
+        if(type==='HISTORY') {
+            const selOpVal   = document.getElementById('hist-op') ? document.getElementById('hist-op').value : 'ALL';
+            const selToolVal = document.getElementById('hist-tool') ? document.getElementById('hist-tool').value : 'ALL';
+            const filterLabel = selOpVal!=='ALL' ? `Operator: ${selOpVal}` : selToolVal!=='ALL' ? `Tool: ${selToolVal}` : 'All';
+            let rows = db.transactions
+                .filter(tr =>
+                    (!selMonth || tr.date.startsWith(selMonth)) &&
+                    (selOpVal==='ALL'   || tr.op===selOpVal) &&
+                    (selToolVal==='ALL' || tr.tool===selToolVal)
+                )
+                .slice().reverse()
+                .map(tr => [tr.date, tr.op, tr.tool, tr.type==='OUT'?'Issue':'Purchase', tr.qty]);
+            doc.setFontSize(7); doc.setTextColor(200,200,200);
+            doc.text('Filter: '+filterLabel, 14, 29);
+            doc.setTextColor(30,30,30);
+            doc.autoTable({
+                head:[['Date','Operator / Supplier','Tool Name','Type','Qty']],
+                body: rows, startY: 34,
+                styles:{ fontSize:9, cellPadding:4 },
+                headStyles:{ fillColor:[198,40,40], textColor:255, fontStyle:'bold', halign:'center' },
+                alternateRowStyles:{ fillColor:[255,245,245] },
+                columnStyles:{ 0:{halign:'center',cellWidth:26}, 3:{halign:'center',cellWidth:24}, 4:{halign:'center',cellWidth:14} },
+                didDrawPage: () => addFooter(doc, pageW)
             });
-            document.getElementById('report-total').innerText = `₹${total.toLocaleString('en-IN', {minimumFractionDigits:2})}`;
-            document.getElementById('reports-container').innerHTML = html || "<div style='text-align:center; padding:40px; color:gray; font-weight:500;'>No records match filters.</div>";
-        };
+            const fY = doc.lastAutoTable.finalY + 8;
+            const issues    = rows.filter(r=>r[3]==='Issue').length;
+            const purchases = rows.filter(r=>r[3]==='Purchase').length;
+            doc.setFillColor(245,245,245);
+            doc.roundedRect(14, fY, pageW-28, 18, 3, 3, 'F');
+            doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(80,80,80);
+            doc.text('Total: '+rows.length+'   |   Issue: '+issues+'   |   Purchase: '+purchases, pageW/2, fY+11, {align:'center'});
+            doc.save('Chamunda_History_'+dateStamp+'_'+hh+mn+'.pdf');
 
-        window.processWallet = async function(type) {
-            let amt = parseFloat(document.getElementById('w-amt').value); let rem = document.getElementById('w-remark').value;
-            if(!amt || amt<=0) return alert("Please enter a valid amount.");
-            if(type === 'remove' && amt > currentBalance) return alert("Insufficient balance in wallet.");
-            showLoader(true);
-            try {
-                await addDoc(collection(db, "wallet_transactions"), { type: type, amount: amt, remark: rem, created_at: serverTimestamp() });
-                document.getElementById('w-amt').value=""; document.getElementById('w-remark').value="";
-                initAppData();
-            } catch(e) { showLoader(false); }
-        };
+        } else if(type==='STOCK') {
+            let rows = []; let lowCount = 0;
+            db.tools.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(t => {
+                let p   = db.transactions.filter(tr=>tr.tool===t.name&&tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+                let out = db.transactions.filter(tr=>tr.tool===t.name&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+                let avail = (t.initialStock||0)+p-out;
+                let isLow = avail<=(t.minLimit||0);
+                if(isLow) lowCount++;
+                rows.push([t.name, t.cat, (t.initialStock||0)+p, out, avail, isLow?'LOW':'OK']);
+            });
+            doc.autoTable({
+                head:[['Tool Name','Category','Total In','Used','Available','Status']],
+                body: rows, startY: 34,
+                styles:{ fontSize:9, cellPadding:4 },
+                headStyles:{ fillColor:[198,40,40], textColor:255, fontStyle:'bold', halign:'center' },
+                alternateRowStyles:{ fillColor:[255,245,245] },
+                columnStyles:{ 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center',fontStyle:'bold'}, 5:{halign:'center'} },
+                didParseCell:(data)=>{
+                    if(data.column.index===5 && data.cell.raw==='LOW'){ data.cell.styles.textColor=[198,40,40]; data.cell.styles.fontStyle='bold'; }
+                    if(data.column.index===5 && data.cell.raw==='OK') { data.cell.styles.textColor=[46,125,50]; }
+                },
+                didDrawPage: () => addFooter(doc, pageW)
+            });
+            const fY = doc.lastAutoTable.finalY + 8;
+            doc.setFillColor(245,245,245);
+            doc.roundedRect(14, fY, pageW-28, 18, 3, 3, 'F');
+            doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(80,80,80);
+            doc.text('Total Tools: '+rows.length+'   |   Low Stock: '+lowCount, pageW/2, fY+11, {align:'center'});
+            doc.save('Chamunda_Stock_'+dateStamp+'_'+hh+mn+'.pdf');
 
-        window.renderWalletHistory = function() {
-            let html = "";
-            walletList.forEach(w => {
-                let color = w.type === 'add' ? 'var(--success)' : (w.type === 'expense' ? '#9CA3AF' : 'var(--danger)');
-                let icon = w.type === 'add' ? 'add_circle' : (w.type === 'expense' ? 'receipt' : 'remove_circle');
-                let dt = getSafeDateString(w.created_at);
-
-                let subtitle;
-                if (w.type === 'expense') {
-                    const expense = w.expense_id ? expensesList.find(e => e.id === w.expense_id) : null;
-                    if (expense) {
-                        subtitle = `${dt} &bull; ${expense.category_name} &bull; ${expense.payee_name}`;
-                    } else {
-                        let cleanRemark = w.remark ? w.remark.replace(/^Exp:\s*/i, '') : 'Expense';
-                        subtitle = `${dt} &bull; ${cleanRemark}`;
+        } else if(type==='TOOLS') {
+            let rows = [];
+            db.tools.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(t => {
+                let p   = db.transactions.filter(tr=>tr.tool===t.name&&tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+                let out = db.transactions.filter(tr=>tr.tool===t.name&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+                let avail = (t.initialStock||0)+p-out;
+                rows.push([t.name, t.cat, t.initialStock||0, t.minLimit||0, avail]);
+            });
+            doc.autoTable({
+                head:[['Tool Name','Category','Opening Stock','Min Alert','Available']],
+                body: rows, startY: 34,
+                styles:{ fontSize:9, cellPadding:4 },
+                headStyles:{ fillColor:[245,124,0], textColor:255, fontStyle:'bold', halign:'center' },
+                alternateRowStyles:{ fillColor:[255,248,240] },
+                columnStyles:{ 0:{fontStyle:'bold'}, 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center',fontStyle:'bold'} },
+                didParseCell:(data)=>{
+                    if(data.column.index===4 && data.section==='body'){
+                        const minVal = rows[data.row.index] ? rows[data.row.index][3] : 0;
+                        if(data.cell.raw <= minVal){ data.cell.styles.textColor=[198,40,40]; data.cell.styles.fontStyle='bold'; }
+                        else { data.cell.styles.textColor=[46,125,50]; }
                     }
-                } else {
-                    subtitle = `${dt} &bull; ${w.remark || 'Direct Transaction'}`;
-                }
-
-                html += `<div class="card" style="padding:15px; margin-bottom:12px;">
-                    <div style="display:flex; align-items:center; justify-content:space-between;">
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <i class="material-icons" style="color:${color}; font-size:24px;">${icon}</i>
-                            <div>
-                                <div style="font-weight:800; font-size:15px; margin-bottom:4px; color:var(--text-main);">${w.type.toUpperCase()}</div>
-                                <div style="font-size:14px; font-weight:500; color:var(--text-muted); text-transform:uppercase;">${subtitle}</div>
-                            </div>
-                        </div>
-                        <div style="font-weight:800; font-size:16px; color:${w.type==='add'?'var(--success)':'var(--text-main)'};">${w.type==='add'?'+':'-'} ₹${parseFloat(w.amount).toLocaleString('en-IN')}</div>
-                    </div>
-                </div>`;
+                },
+                didDrawPage: () => addFooter(doc, pageW)
             });
-            document.getElementById('wallet-history-container').innerHTML = html || "<div style='text-align:center; padding:40px; color:gray;'>No activity found.</div>";
-        };
+            const fY = doc.lastAutoTable.finalY + 8;
+            doc.setFillColor(245,245,245);
+            doc.roundedRect(14, fY, pageW-28, 18, 3, 3, 'F');
+            doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(80,80,80);
+            doc.text('Total Tools: '+rows.length, pageW/2, fY+11, {align:'center'});
+            doc.save('Chamunda_Tools_'+dateStamp+'_'+hh+mn+'.pdf');
 
-        window.renderMasters = function() {
-            const type = document.getElementById('master-selector').value;
-            let html = "";
-            Object.entries(masterData[type]).sort((a,b)=>(a[1]||"").localeCompare(b[1]||"")).forEach(([id, name]) => {
-                html += `<div class="list-item">
-                    <div style="font-weight:600; color:var(--text-main);">${name}</div>
-                    <div class="action-btns" style="display:flex; gap:15px;">
-                        <i class="material-icons" style="color:var(--text-muted); cursor:pointer; font-size:20px;" onclick="editMaster('${type}', '${id}', '${name}')">edit</i>
-                        <i class="material-icons" style="color:#FCA5A5; cursor:pointer; font-size:20px;" onclick="deleteMaster('${type}', '${id}', '${name}')">delete_outline</i>
-                    </div>
-                </div>`;
+        } else if(type==='OPERATORS') {
+            let rows = db.operators.map((o,i) => {
+                let total    = db.transactions.filter(tr=>tr.op===o&&tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+                let txnCount = db.transactions.filter(tr=>tr.op===o&&tr.type==='OUT').length;
+                let lastDate = db.transactions.filter(tr=>tr.op===o&&tr.type==='OUT').slice(-1)[0]?.date || '-';
+                return [String(i+1), o, txnCount, total, lastDate];
             });
-            document.getElementById('masters-container').innerHTML = html || "<div style='text-align:center; padding:40px; color:gray;'>Category list is empty.</div>";
-        };
+            doc.autoTable({
+                head:[['#','Operator Name','Transactions','Total Issued','Last Date']],
+                body: rows, startY: 34,
+                styles:{ fontSize:9, cellPadding:4 },
+                headStyles:{ fillColor:[46,125,50], textColor:255, fontStyle:'bold', halign:'center' },
+                alternateRowStyles:{ fillColor:[240,255,243] },
+                columnStyles:{ 0:{halign:'center',cellWidth:12}, 1:{fontStyle:'bold'}, 2:{halign:'center'}, 3:{halign:'center'}, 4:{halign:'center'} },
+                didDrawPage: () => addFooter(doc, pageW)
+            });
+            const fY = doc.lastAutoTable.finalY + 8;
+            doc.setFillColor(245,245,245);
+            doc.roundedRect(14, fY, pageW-28, 18, 3, 3, 'F');
+            doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(80,80,80);
+            doc.text('Total Operators: '+rows.length, pageW/2, fY+11, {align:'center'});
+            doc.save('Chamunda_Operators_'+dateStamp+'_'+hh+mn+'.pdf');
+        }
+    }
 
-        window.addMaster = async function() {
-            const type = document.getElementById('master-selector').value; const val = document.getElementById('master-input').value.trim();
-            if(!val) return; showLoader(true);
-            try { await addDoc(collection(db, type), {name: val}); document.getElementById('master-input').value=""; initAppData(); } 
-            catch(e) { showLoader(false); }
-        };
-
-        window.editMaster = async function(type, id, oldName) {
-            let newName = prompt(`Rename ${type.slice(0,-1)}:`, oldName);
-            if(newName && newName.trim() !== oldName) {
-                showLoader(true);
-                try { await updateDoc(doc(db, type, id), {name: newName.trim()}); initAppData(); } 
-                catch(e) { showLoader(false); }
-            }
-        };
-
-        window.deleteMaster = async function(type, id, name) {
-            if(!confirm(`Permanently remove "${name}" from database?`)) return; showLoader(true);
-            try { await deleteDoc(doc(db, type, id)); initAppData(); } 
-            catch(e) { showLoader(false); }
-        };
-
-        initAppData();
-
-    </script>
+    // ── INIT ──
+    document.getElementById('t-date').valueAsDate = new Date();
+    document.getElementById('rep-month').value = new Date().toISOString().substring(0,7);
+    document.getElementById('hist-month').value = new Date().toISOString().substring(0,7);
+    setMode('OUT');
+</script>
 </body>
 </html>
