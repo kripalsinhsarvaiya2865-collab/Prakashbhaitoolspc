@@ -2,7 +2,7 @@
 <html lang="gu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Chamunda CNC Tools</title>
 
     <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
@@ -31,10 +31,11 @@
         body {
             font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: var(--bg); color: var(--text);
-            margin: 0; padding-bottom: 88px;
+            margin: 0; padding-bottom: calc(88px + env(safe-area-inset-bottom));
             transition: background 0.3s, color 0.3s;
             overflow-x: hidden;
             font-size: 16px;
+            touch-action: manipulation;
         }
 
         /* ── HEADER ── */
@@ -135,7 +136,8 @@
         .bottom-nav {
             position: fixed; bottom: 0; width: 100%; background: var(--nav);
             display: flex; border-top: 1.5px solid var(--border);
-            height: 76px; box-shadow: 0 -6px 24px rgba(0,0,0,0.12); z-index: 800;
+            height: 76px; padding-bottom: env(safe-area-inset-bottom);
+            box-shadow: 0 -6px 24px rgba(0,0,0,0.12); z-index: 800;
         }
         .nav-item {
             flex: 1; display: flex; flex-direction: column;
@@ -705,6 +707,15 @@
 
     function syncToCloud() { database.ref('tools_data').set(db); }
 
+    // ── STOCK HELPER ──
+    function getAvailableStock(toolName) {
+        const t = db.tools.find(x => x.name === toolName);
+        if(!t) return 0;
+        let p   = db.transactions.filter(tr=>tr.tool===toolName && tr.subType==='Purchase').reduce((s,c)=>s+c.qty,0);
+        let out = db.transactions.filter(tr=>tr.tool===toolName && tr.type==='OUT').reduce((s,c)=>s+c.qty,0);
+        return (t.initialStock||0) + p - out;
+    }
+
     // ── SHOW SECTION ──
     function showSec(name) {
         ['entry','history','alert','report','setting'].forEach(s => {
@@ -760,6 +771,7 @@
                    <div id="search-res" class="search-results"></div>
                    <input type="hidden" id="sel-tool">
                  </div>
+                 <div id="stock-note" style="margin-top:6px;"></div>
                  <label>નંગ (Quantity)</label>
                  <input type="number" id="sel-qty" value="1" min="1">`;
         document.getElementById('entry-fields').innerHTML = html;
@@ -770,7 +782,18 @@
         if(!val) { res.style.display='none'; return; }
         const f = db.tools.filter(t => t.name.toLowerCase().includes(val.toLowerCase()));
         res.innerHTML = f.length
-            ? f.map(t=>`<div onclick="selectTool('${t.name.replace(/'/g,"\\'")}')"><b>${t.name}</b> <small style="color:var(--muted)">(${t.cat})</small></div>`).join('')
+            ? f.map(t=>{
+                const avail = getAvailableStock(t.name);
+                const isZero = avail <= 0;
+                const blocked = currentMode === 'OUT' && isZero;
+                const badge = isZero
+                    ? `<span style="color:#c62828;font-weight:800;">⛔ સ્ટોક ખાલી</span>`
+                    : `<span style="color:#2e7d32;font-weight:700;">સ્ટોક: ${avail}</span>`;
+                return `<div style="${blocked?'opacity:0.4;cursor:not-allowed;':''}" ${blocked?'':`onclick="selectTool('${t.name.replace(/'/g,"\\'")}')"`}>
+                            <b>${t.name}</b> <small style="color:var(--muted)">(${t.cat})</small><br>
+                            <small>${badge}</small>
+                        </div>`;
+              }).join('')
             : `<div style="color:var(--muted)">ટૂલ મળ્યું નહીં</div>`;
         res.style.display = 'block';
     }
@@ -779,6 +802,17 @@
         document.getElementById('tool-search').value = name;
         document.getElementById('sel-tool').value = name;
         document.getElementById('search-res').style.display = 'none';
+        const qtyEl = document.getElementById('sel-qty');
+        const noteEl = document.getElementById('stock-note');
+        if(currentMode === 'OUT') {
+            const avail = getAvailableStock(name);
+            if(qtyEl) qtyEl.max = avail > 0 ? avail : 1;
+            if(noteEl) noteEl.innerHTML = avail > 0
+                ? `<small style="color:var(--sec);font-weight:700;">✅ ઉપલબ્ધ સ્ટોક: ${avail}</small>`
+                : `<small style="color:#c62828;font-weight:800;">⛔ સ્ટોક ખાલી છે — ડિસ્પેચ કરી શકાશે નહીં</small>`;
+        } else if(noteEl) {
+            noteEl.innerHTML = '';
+        }
     }
 
     function saveTransaction() {
@@ -789,6 +823,13 @@
         if(!date||!toolName||!qty||!op) return alert("⚠️ બધી વિગત ભરો!");
         const toolData = db.tools.find(t => t.name === toolName);
         if(!toolData) return alert("⚠️ આ ટૂલ માસ્ટરમાં નથી!");
+
+        if(currentMode === 'OUT') {
+            const avail = getAvailableStock(toolName);
+            if(avail <= 0) return alert(`⛔ "${toolName}" નો સ્ટોક ખાલી છે!\nડિસ્પેચ કરી શકાશે નહીં.`);
+            if(qty > avail) return alert(`⚠️ ફક્ત ${avail} નંગ જ ઉપલબ્ધ છે!\n"${toolName}" માટે આટલી માત્રા આપી શકાશે નહીં.`);
+        }
+
         db.transactions.push({
             id: Date.now(), date, month: date.substring(0,7),
             type: currentMode, op, tool: toolName, cat: toolData.cat, qty,
